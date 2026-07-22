@@ -1,21 +1,20 @@
 /* ============================================================================
- * tokens.css — design-system tokens (PLACEHOLDER)
+ * tokens.css — design-system tokens (VERSION RÉELLE, générée depuis Carnet)
  *
- * ⚠️  Replace this file with the REAL tokens.css from your design system
- *     (the single source of truth shared with Radar & Carnet de bord).
- *     It reproduces the documented conventions so Cockpit is visually
- *     consistent until the real file is dropped in:
- *       - Bricolage Grotesque (display)
- *       - light/dark via variables + prefers-color-scheme + [data-theme] override
- *       - reduced-motion respected (see interface.css)
+ * À déposer dans cockpit_app/src/styles/tokens.css À LA PLACE du placeholder.
+ * Vocabulaire : celui de Cockpit (--text, --primary, --surface-2…).
+ * Valeurs : le design system réel partagé Radar / Carnet / Cockpit —
+ *   identité « vert forêt », Bricolage Grotesque (display), clair/sombre via
+ *   variables + prefers-color-scheme + surcharge [data-theme].
+ * Source de vérité amont : carnet_core/src/design/tokens.css.
  * ========================================================================== */
 
 :root {
-  /* Typography */
-  --font-display: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-body: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Typography — Bricolage en display, pile système en corps */
+  --font-display: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 
-  /* Spacing scale */
+  /* Spacing scale (conventions Cockpit, inchangées) */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -24,7 +23,7 @@
   --space-6: 32px;
   --space-7: 48px;
 
-  /* Radii */
+  /* Radii — alignés sur Carnet (cartes 12px, panneaux 8px) */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
@@ -35,63 +34,62 @@
   --dur-med: 220ms;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
-  /* Brand (theme-independent) */
-  --brand-500: #6d7cff;
-  --brand-600: #5a67e8;
-  --accent-500: #a855f7;
-
   /* ---- Light theme (default) ---- */
-  --bg: #f5f6f9;
-  --surface: #ffffff;
-  --surface-2: #eef0f5;
-  --surface-3: #e6e9f0;
-  --border: #dfe3ec;
-  --border-strong: #c9cfdd;
-  --text: #14161d;
-  --text-muted: #5b6273;
-  --text-faint: #8a90a2;
-  --primary: var(--brand-600);
-  --primary-hover: #4b57d6;
-  --primary-contrast: #ffffff;
-  --accent: var(--accent-500);
-  --danger: #d64545;
-  --danger-bg: #fdecec;
-  --success: #1f9d61;
-  --success-bg: #e6f6ed;
-  --warning: #c98a12;
-  --warning-bg: #fbf1dc;
+  --bg: #EDEFF4;
+  --surface: #FFFFFF;
+  --surface-2: #F5F6FA;
+  --surface-3: #ECEFF4;
+  --border: #DBDFE8;
+  --border-strong: #C4CAD8;
+  --text: #1B2231;
+  --text-muted: #525C71;
+  --text-faint: #646D80;
+  --primary: #2C6B3F;
+  --primary-hover: #1E4D2C;
+  --primary-contrast: #FFFFFF;
+  --primary-soft: #E5F0E8;
+  --primary-border: #B4D2BE;
+  --accent: #2C6B3F;
+  --danger: #A93B35;
+  --danger-bg: #F7E9E8;
+  --success: #2E6A46;
+  --success-bg: #E2F0E7;
+  --warning: #7A5A10;
+  --warning-bg: #F5EDD8;
   --ring: color-mix(in srgb, var(--primary) 45%, transparent);
-  --shadow-sm: 0 1px 2px rgba(20, 22, 29, 0.06), 0 1px 3px rgba(20, 22, 29, 0.05);
-  --shadow-md: 0 4px 16px rgba(20, 22, 29, 0.08);
-  --shadow-lg: 0 18px 48px rgba(20, 22, 29, 0.18);
+  --shadow-sm: 0 1px 2px rgba(27, 34, 49, 0.05), 0 4px 14px rgba(27, 34, 49, 0.06);
+  --shadow-md: 0 2px 4px rgba(27, 34, 49, 0.07), 0 10px 26px rgba(27, 34, 49, 0.11);
+  --shadow-lg: 0 18px 48px rgba(27, 34, 49, 0.18);
   color-scheme: light;
 }
 
 /* ---- Dark theme via system preference ---- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #0b0d12;
-    --surface: #14171f;
-    --surface-2: #1b1f2a;
-    --surface-3: #232838;
-    --border: #262b38;
-    --border-strong: #333a4d;
-    --text: #eef0f6;
-    --text-muted: #a3abbd;
-    --text-faint: #6b7284;
-    --primary: #7c8bff;
-    --primary-hover: #93a0ff;
-    --primary-contrast: #0b0d12;
-    --accent: #b96bff;
-    --danger: #ff6b6b;
-    --danger-bg: #341c1f;
-    --success: #43c98a;
-    --success-bg: #17301f;
-    --warning: #e0a83a;
-    --warning-bg: #33290f;
+    --bg: #12161F;
+    --surface: #1B212E;
+    --surface-2: #222939;
+    --surface-3: #2A3346;
+    --border: #2C3446;
+    --border-strong: #3B4459;
+    --text: #E7EAF2;
+    --text-muted: #A9B2C5;
+    --text-faint: #8C96AC;
+    --primary: #6FBF89;
+    --primary-hover: #92D3A6;
+    --primary-contrast: #0E1A12;
+    --primary-soft: #1B3322;
+    --primary-border: #315538;
+    --accent: #6FBF89;
+    --danger: #E08A83;
+    --danger-bg: #392224;
+    --success: #86C49E;
+    --success-bg: #1F3529;
+    --warning: #DDB765;
+    --warning-bg: #362E1B;
     --ring: color-mix(in srgb, var(--primary) 55%, transparent);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.5);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25), 0 4px 14px rgba(0, 0, 0, 0.25);
+    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3), 0 10px 26px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 22px 60px rgba(0, 0, 0, 0.6);
     color-scheme: dark;
   }
@@ -99,28 +97,30 @@
 
 /* ---- Explicit theme override (wins over system preference) ---- */
 :root[data-theme='dark'] {
-  --bg: #0b0d12;
-  --surface: #14171f;
-  --surface-2: #1b1f2a;
-  --surface-3: #232838;
-  --border: #262b38;
-  --border-strong: #333a4d;
-  --text: #eef0f6;
-  --text-muted: #a3abbd;
-  --text-faint: #6b7284;
-  --primary: #7c8bff;
-  --primary-hover: #93a0ff;
-  --primary-contrast: #0b0d12;
-  --accent: #b96bff;
-  --danger: #ff6b6b;
-  --danger-bg: #341c1f;
-  --success: #43c98a;
-  --success-bg: #17301f;
-  --warning: #e0a83a;
-  --warning-bg: #33290f;
+  --bg: #12161F;
+  --surface: #1B212E;
+  --surface-2: #222939;
+  --surface-3: #2A3346;
+  --border: #2C3446;
+  --border-strong: #3B4459;
+  --text: #E7EAF2;
+  --text-muted: #A9B2C5;
+  --text-faint: #8C96AC;
+  --primary: #6FBF89;
+  --primary-hover: #92D3A6;
+  --primary-contrast: #0E1A12;
+  --primary-soft: #1B3322;
+  --primary-border: #315538;
+  --accent: #6FBF89;
+  --danger: #E08A83;
+  --danger-bg: #392224;
+  --success: #86C49E;
+  --success-bg: #1F3529;
+  --warning: #DDB765;
+  --warning-bg: #362E1B;
   --ring: color-mix(in srgb, var(--primary) 55%, transparent);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25), 0 4px 14px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3), 0 10px 26px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 22px 60px rgba(0, 0, 0, 0.6);
   color-scheme: dark;
 }
