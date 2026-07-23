@@ -3,6 +3,43 @@ import { FREQUENCIES, FREQUENCY_LABEL, DAYS, DAY_LABEL } from '../../data/model.
 
 const DURATION_PRESETS = [15, 30, 45, 60, 90]
 
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+const MINUTE_STEPS = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55']
+
+// Heure en deux <select> (heure + minutes). time est "HH:MM" ou "" (pas d'heure).
+function TimeSelect({ time, onChange }) {
+  const [h, m] = time ? time.split(':') : ['', '00']
+  // Une valeur de minutes hors pas de 5 (fichier édité à la main) reste affichable.
+  const minutes = m && !MINUTE_STEPS.includes(m) ? [...MINUTE_STEPS, m].sort() : MINUTE_STEPS
+  return (
+    <div className="row">
+      <select
+        id="habit-time-h"
+        className="select"
+        value={h}
+        onChange={(e) => onChange(e.target.value === '' ? '' : `${e.target.value}:${m || '00'}`)}
+        aria-label="Heure"
+      >
+        <option value="">— aucune</option>
+        {HOURS.map((hh) => (
+          <option key={hh} value={hh}>{hh} h</option>
+        ))}
+      </select>
+      <select
+        className="select"
+        value={m}
+        disabled={h === ''}
+        onChange={(e) => onChange(`${h}:${e.target.value}`)}
+        aria-label="Minutes"
+      >
+        {minutes.map((mm) => (
+          <option key={mm} value={mm}>{mm}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 function initialFrom(habit) {
   const s = (habit && habit.schedule) || {}
   return {
@@ -58,8 +95,10 @@ export function HabitForm({ habit, onSubmit, onCancel, submitLabel = 'Enregistre
           </select>
         </div>
         <div>
-          <label className="label" htmlFor="habit-time">Heure (optionnel)</label>
-          <input id="habit-time" type="time" className="input" value={f.time} onChange={(e) => set({ time: e.target.value })} />
+          <label className="label" htmlFor="habit-time-h">Heure (optionnel)</label>
+          {/* Deux <select> plutôt qu'un input type="time" : le sélecteur natif
+              Android s'affiche sans bouton de validation sur certains appareils. */}
+          <TimeSelect time={f.time} onChange={(time) => set({ time })} />
         </div>
       </div>
 
