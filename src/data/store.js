@@ -6,7 +6,7 @@
 //   engine can debounce a push. `replaceState` (used by the sync engine after a
 //   merge) updates the UI WITHOUT scheduling another push — avoids feedback loops.
 import { stamp, observe } from './clock.js'
-import { emptyState, newTodo, newSubtask, newHabit, tombstone } from './model.js'
+import { emptyState, newTodo, newSubtask, newHabit, newInboxItem, tombstone } from './model.js'
 import { canonicalize } from '../sync/merge.js'
 import { KEYS, load, save } from './persist.js'
 
@@ -22,6 +22,7 @@ function hydrate() {
 function bumpClock(state) {
   for (const t of state.todos) observe(t.updatedAt)
   for (const h of state.habits) observe(h.updatedAt)
+  for (const i of state.inbox) observe(i.updatedAt)
   for (const d of state.deleted) observe(d.at)
 }
 
@@ -210,6 +211,24 @@ export function createStore(initial) {
         ),
       }))
     },
+    // Check off / un-check today's (or any day's) completion. Does NOT touch
+    // calendarSync: only schedule/active changes re-open the calendar handshake.
+    toggleHabitCompletion(id, date) {
+      mutate((s) => ({
+        ...s,
+        habits: s.habits.map((h) => {
+          if (h.id !== id) return h
+          const has = h.completions.includes(date)
+          const t = stamp()
+          // checks is the per-date CRDT source of truth; completions is derived.
+          const checks = { ...h.checks, [date]: { on: !has, at: t } }
+          const completions = has
+            ? h.completions.filter((d) => d !== date)
+            : [...h.completions, date].sort()
+          return { ...h, checks, completions, updatedAt: t }
+        }),
+      }))
+    },
     deleteHabit(id) {
       mutate((s) => {
         if (!s.habits.some((h) => h.id === id)) return s
@@ -217,6 +236,58 @@ export function createStore(initial) {
           ...s,
           habits: s.habits.filter((h) => h.id !== id),
           deleted: [...s.deleted, tombstone(id, 'habit')],
+        }
+      })
+    },
+
+    // ---------- Inbox (quick capture) ----------
+    addInboxItem(text) {
+      const t = (text || '').trim()
+      if (!t) return null
+      const item = newInboxItem(t)
+      mutate((s) => ({ ...s, inbox: [...s.inbox, item] }))
+      return item.id
+    },
+    // Convert an inbox item into a todo; the item stays visible in the
+    // "recently processed" block with its note.
+    processInboxToTodo(id) {
+      let todoId = null
+      mutate((s) => {
+        const item = s.inbox.find((i) => i.id === id)
+        if (!item || item.processedAt != null) return s
+        const maxOrder = s.todos.reduce((m, x) => Math.max(m, x.order || 0), 0)
+        const todo = newTodo({ title: item.text, order: maxOrder + ORDER_STEP })
+        todoId = todo.id
+        return {
+          ...s,
+          todos: [...s.todos, todo],
+          inbox: s.inbox.map((i) =>
+            i.id === id ? { ...i, processedAt: stamp(), processedNote: 'Converti en todo', updatedAt: stamp() } : i,
+          ),
+        }
+      })
+      return todoId
+    },
+    deleteInboxItem(id) {
+      mutate((s) => {
+        if (!s.inbox.some((i) => i.id === id)) return s
+        return {
+          ...s,
+          inbox: s.inbox.filter((i) => i.id !== id),
+          deleted: [...s.deleted, tombstone(id, 'inbox')],
+        }
+      })
+    },
+    // Silently tombstone processed items older than 30 days to bound file size.
+    purgeProcessedInbox(now = Date.now()) {
+      const cutoff = now - 30 * 86400000
+      mutate((s) => {
+        const stale = s.inbox.filter((i) => i.processedAt != null && i.processedAt < cutoff)
+        if (!stale.length) return s
+        return {
+          ...s,
+          inbox: s.inbox.filter((i) => !(i.processedAt != null && i.processedAt < cutoff)),
+          deleted: [...s.deleted, ...stale.map((i) => tombstone(i.id, 'inbox'))],
         }
       })
     },

@@ -4,7 +4,7 @@
  * - Cross-origin (GitHub API, Drive gateway): never intercepted -> always live.
  * Bump CACHE_VERSION to invalidate old caches on the next activation.
  */
-const CACHE_VERSION = 'cockpit-v1'
+const CACHE_VERSION = 'cockpit-v2'
 const SCOPE_URL = new URL(self.registration.scope)
 const SHELL_URL = new URL('./index.html', SCOPE_URL).toString()
 

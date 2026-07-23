@@ -173,15 +173,15 @@ describe('foreign-file guard', () => {
 })
 
 describe('schema-version guard', () => {
-  it('never merges or overwrites a newer-schema (v2) remote', async () => {
-    const v2 = { app: 'cockpit', version: 2, todos: [todo('future', 9)], habits: [], deleted: [] }
+  it('never merges or overwrites a newer-schema (v3) remote', async () => {
+    const v3 = { app: 'cockpit', version: 3, todos: [todo('future', 9)], habits: [], deleted: [] }
     const store = fakeStore(state({ todos: [todo('mine', 5)] }))
-    const gh = fakeRemote({ content: v2 })
+    const gh = fakeRemote({ content: v3 })
     let status
     await engineWith(store, gh, fakeRemote({ configured: false }), (s) => (status = s)).sync('test')
     expect(gh.calls.writes).toBe(0)
-    expect(gh.peek().version).toBe(2) // untouched
-    expect(store.getSnapshot().todos.map((t) => t.id)).toEqual(['mine']) // v2 data not pulled in
+    expect(gh.peek().version).toBe(3) // untouched
+    expect(store.getSnapshot().todos.map((t) => t.id)).toEqual(['mine']) // v3 data not pulled in
     expect(status.github.state).toBe('blocked')
   })
 })

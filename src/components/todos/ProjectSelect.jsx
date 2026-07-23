@@ -1,4 +1,4 @@
-import { groupBySource } from '../../sync/projects.js'
+import { groupBySource } from '../../sync/sources.js'
 
 // Grouped <select> for projectId. Projects come from Radar + Carnet (read-only).
 export function ProjectSelect({ value, projects, onChange, id }) {

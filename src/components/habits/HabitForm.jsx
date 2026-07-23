@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { FREQUENCIES, FREQUENCY_LABEL, DAYS, DAY_LABEL } from '../../data/model.js'
+import { FREQUENCIES, FREQUENCY_LABEL, DAYS, DAY_LABEL, PILLARS, PILLAR_LABEL } from '../../data/model.js'
+import { todayISO } from '../../utils/dates.js'
 
 const DURATION_PRESETS = [15, 30, 45, 60, 90]
 
@@ -45,10 +46,12 @@ function initialFrom(habit) {
   return {
     title: habit?.title || '',
     notes: habit?.notes || '',
+    pillar: habit?.pillar ?? null,
     frequency: s.frequency || 'daily',
     daysOfWeek: Array.isArray(s.daysOfWeek) ? s.daysOfWeek : [],
     time: s.time || '',
     durationMinutes: Number.isFinite(s.durationMinutes) ? s.durationMinutes : 30,
+    anchorDate: s.anchorDate || '',
   }
 }
 
@@ -64,16 +67,20 @@ export function HabitForm({ habit, onSubmit, onCancel, submitLabel = 'Enregistre
 
   function submit() {
     if (!f.title.trim()) return setError('Le titre est requis.')
-    if (f.frequency === 'weekly' && f.daysOfWeek.length === 0) return setError('Choisissez au moins un jour.')
+    const needsDays = f.frequency === 'weekly' || f.frequency === 'biweekly'
+    if (needsDays && f.daysOfWeek.length === 0) return setError('Choisissez au moins un jour.')
     setError('')
     onSubmit({
       title: f.title.trim(),
       notes: f.notes.trim(),
+      pillar: f.pillar,
       schedule: {
         frequency: f.frequency,
-        daysOfWeek: f.frequency === 'weekly' ? DAYS.filter((d) => f.daysOfWeek.includes(d)) : [],
+        daysOfWeek: needsDays ? DAYS.filter((d) => f.daysOfWeek.includes(d)) : [],
         time: f.time,
         durationMinutes: Number(f.durationMinutes) || 0,
+        // anchorDate is REQUIRED for biweekly (week parity); defaults to today.
+        anchorDate: f.frequency === 'biweekly' ? f.anchorDate || todayISO() : '',
       },
     })
   }
@@ -102,7 +109,7 @@ export function HabitForm({ habit, onSubmit, onCancel, submitLabel = 'Enregistre
         </div>
       </div>
 
-      {f.frequency === 'weekly' && (
+      {(f.frequency === 'weekly' || f.frequency === 'biweekly') && (
         <div>
           <span className="label">Jours</span>
           <div className="day-picker" role="group" aria-label="Jours de la semaine">
@@ -114,6 +121,36 @@ export function HabitForm({ habit, onSubmit, onCancel, submitLabel = 'Enregistre
           </div>
         </div>
       )}
+
+      {f.frequency === 'biweekly' && (
+        <div>
+          <label className="label" htmlFor="habit-anchor">À partir du</label>
+          <input
+            id="habit-anchor"
+            type="date"
+            className="input"
+            value={f.anchorDate || todayISO()}
+            onChange={(e) => set({ anchorDate: e.target.value })}
+          />
+          <p className="faint" style={{ fontSize: 12, margin: '4px 0 0' }}>
+            Fixe la parité des semaines (« une semaine sur deux » à partir de cette date).
+          </p>
+        </div>
+      )}
+
+      <div>
+        <span className="label">Pilier</span>
+        <div className="segmented pillar-picker" role="group" aria-label="Pilier de vie">
+          <button type="button" aria-pressed={f.pillar === null} onClick={() => set({ pillar: null })}>
+            Aucun
+          </button>
+          {PILLARS.map((p) => (
+            <button key={p} type="button" aria-pressed={f.pillar === p} onClick={() => set({ pillar: p })}>
+              {PILLAR_LABEL[p]}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div>
         <label className="label" htmlFor="habit-duration">Durée (minutes)</label>

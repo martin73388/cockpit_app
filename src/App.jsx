@@ -3,7 +3,8 @@ import { store } from './data/store.js'
 import { getUi, setUi } from './data/ui.js'
 import { getGithubConfig, getDriveConfig } from './data/config.js'
 import { createEngine } from './sync/engine.js'
-import { fetchProjects, loadCachedProjects } from './sync/projects.js'
+import { fetchSources, loadCachedSources, projectsOf } from './sync/sources.js'
+import { fetchBrief, loadCachedBrief } from './sync/brief.js'
 import { Header } from './components/Header.jsx'
 import { TodosView } from './components/todos/TodosView.jsx'
 import { HabitsView } from './components/habits/HabitsView.jsx'
@@ -23,10 +24,12 @@ export default function App() {
     github: { state: 'idle', message: '', at: null },
     drive: { state: 'idle', message: '', at: null },
   }))
-  const [projects, setProjects] = useState(loadCachedProjects)
+  const [sources, setSources] = useState(loadCachedSources)
+  const [brief, setBrief] = useState(loadCachedBrief)
+  const [updateReady, setUpdateReady] = useState(false)
   const engineRef = useRef(null)
 
-  // Persisted UI prefs helper.
+  // Persisted UI prefs helper (the active tab itself is session-only).
   function updateUi(patch) {
     setUiState(setUi(patch))
   }
@@ -34,10 +37,13 @@ export default function App() {
   // Theme.
   useEffect(() => applyTheme(ui.theme), [ui.theme])
 
-  // Refresh the project dropdown from Radar + Carnet via the Drive gateway.
-  const refreshProjects = useMemo(
+  // Refresh the read-only sources (Radar + Carnet + daily brief) — called on
+  // EVERY sync cycle (launch / focus / online / manual), not just at launch.
+  const refreshSources = useMemo(
     () => () => {
-      fetchProjects(getDriveConfig()).then(setProjects).catch(() => {})
+      const cfg = getDriveConfig()
+      fetchSources(cfg).then(setSources).catch(() => {})
+      fetchBrief(cfg).then(setBrief).catch(() => {})
     },
     [],
   )
@@ -47,22 +53,38 @@ export default function App() {
   // double-mount; a single instance lets its internal mutex coalesce the two
   // launch syncs instead. It reads config live each cycle.
   if (!engineRef.current) {
-    engineRef.current = createEngine({ store, getGithubConfig, getDriveConfig, onStatus: setStatus })
+    engineRef.current = createEngine({
+      store,
+      getGithubConfig,
+      getDriveConfig,
+      onStatus: setStatus,
+      onCycleEnd: refreshSources,
+    })
   }
   useEffect(() => {
     const engine = engineRef.current
     engine.start()
-    refreshProjects()
+    store.purgeProcessedInbox() // silent 30-day purge of processed inbox items
     return () => engine.stop()
-  }, [refreshProjects])
+  }, [])
+
+  // New service worker took control -> offer a refresh (avoids serving the old
+  // version indefinitely).
+  useEffect(() => {
+    const onUpdated = () => setUpdateReady(true)
+    window.addEventListener('cockpit:sw-updated', onUpdated)
+    return () => window.removeEventListener('cockpit:sw-updated', onUpdated)
+  }, [])
 
   function syncNow() {
-    engineRef.current?.sync('manual').then(refreshProjects)
+    engineRef.current?.sync('manual')
   }
   function onConfigChanged() {
     // Config lives in localStorage and is read live by the engine; just re-sync.
-    engineRef.current?.sync('config').then(refreshProjects)
+    engineRef.current?.sync('config')
   }
+
+  const projects = useMemo(() => projectsOf(sources), [sources])
 
   const tab = ui.tab
   function setTab(t) {
@@ -79,7 +101,7 @@ export default function App() {
         onOpenSettings={() => setTab('settings')}
       />
       <main className="container">
-        {tab === 'dashboard' && <DashboardView />}
+        {tab === 'dashboard' && <DashboardView sources={sources} brief={brief} />}
         {tab === 'todos' && <TodosView projects={projects} ui={ui} onUi={updateUi} />}
         {tab === 'habits' && <HabitsView />}
         {tab === 'settings' && (
@@ -92,6 +114,14 @@ export default function App() {
           />
         )}
       </main>
+      {updateReady && (
+        <div className="toast update-toast" role="status">
+          Nouvelle version disponible
+          <button className="btn btn-sm btn-primary" onClick={() => window.location.reload()}>
+            Recharger
+          </button>
+        </div>
+      )}
     </div>
   )
 }

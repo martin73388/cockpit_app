@@ -6,6 +6,12 @@ export function todayISO(d = new Date()) {
   return `${y}-${m}-${day}`
 }
 
+export function addDaysISO(iso, n) {
+  const d = new Date(iso + 'T12:00:00')
+  d.setDate(d.getDate() + n)
+  return todayISO(d)
+}
+
 export function isOverdue(todo, today = todayISO()) {
   return !todo.done && !!todo.dueDate && todo.dueDate < today
 }

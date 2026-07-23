@@ -2,7 +2,7 @@ import { SyncBadge } from './common/SyncBadge.jsx'
 import { IconGear } from './common/Icons.jsx'
 
 const TABS = [
-  { id: 'dashboard', label: 'Dashboard', disabled: true },
+  { id: 'dashboard', label: 'Dashboard' },
   { id: 'todos', label: 'Todos' },
   { id: 'habits', label: 'Habitudes' },
 ]
@@ -32,12 +32,10 @@ export function Header({ tab, onTab, status, onSyncNow, onOpenSettings }) {
           <button
             key={t.id}
             className="tab"
-            disabled={t.disabled}
             aria-current={tab === t.id ? 'page' : undefined}
-            onClick={() => !t.disabled && onTab(t.id)}
+            onClick={() => onTab(t.id)}
           >
             {t.label}
-            {t.disabled && <span className="badge badge-soon">Bientôt</span>}
           </button>
         ))}
       </nav>

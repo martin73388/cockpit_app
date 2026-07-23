@@ -9,6 +9,8 @@ export const KEYS = {
   drive: PREFIX + 'drive-config',
   ui: PREFIX + 'ui',
   projects: PREFIX + 'projects-cache',
+  sources: PREFIX + 'sources-cache',
+  brief: PREFIX + 'brief-cache',
 }
 
 function available() {

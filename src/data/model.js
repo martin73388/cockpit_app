@@ -6,7 +6,7 @@
 import { stamp } from './clock.js'
 
 export const APP = 'cockpit'
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 export const PRIORITIES = ['haute', 'normale', 'basse']
 export const PRIORITY_LABEL = { haute: 'Haute', normale: 'Normale', basse: 'Basse' }
@@ -21,8 +21,11 @@ export const SORT_LABEL = { manual: 'Manuel', due: 'Échéance', priority: 'Prio
 
 export const LAYOUTS = ['rows', 'cards']
 
-export const FREQUENCIES = ['daily', 'weekly']
-export const FREQUENCY_LABEL = { daily: 'Quotidienne', weekly: 'Hebdomadaire' }
+export const FREQUENCIES = ['daily', 'weekly', 'biweekly']
+export const FREQUENCY_LABEL = { daily: 'Quotidienne', weekly: 'Hebdomadaire', biweekly: 'Toutes les 2 semaines' }
+
+export const PILLARS = ['sommeil', 'sport', 'couple', 'proches', 'repas']
+export const PILLAR_LABEL = { sommeil: 'Sommeil', sport: 'Sport', couple: 'Couple', proches: 'Proches', repas: 'Repas' }
 
 // Ordered Mon-first, matching human recurrence display.
 export const DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
@@ -36,7 +39,7 @@ export function uid() {
 }
 
 export function emptyState() {
-  return { app: APP, version: SCHEMA_VERSION, todos: [], habits: [], deleted: [] }
+  return { app: APP, version: SCHEMA_VERSION, todos: [], habits: [], inbox: [], deleted: [] }
 }
 
 export function newTodo(patch = {}) {
@@ -63,7 +66,9 @@ export function newSubtask(patch = {}) {
 }
 
 export function emptySchedule() {
-  return { frequency: 'daily', daysOfWeek: [], time: '', durationMinutes: 30 }
+  // anchorDate is only meaningful for biweekly (week-parity anchor); kept ''
+  // otherwise so canonical serialization stays stable.
+  return { frequency: 'daily', daysOfWeek: [], time: '', durationMinutes: 30, anchorDate: '' }
 }
 
 export function newHabit(patch = {}) {
@@ -74,12 +79,20 @@ export function newHabit(patch = {}) {
     notes: '',
     active: true,
     schedule: emptySchedule(),
+    completions: [],
+    checks: {}, // per-date completion CRDT: { "YYYY-MM-DD": { on, at } } — completions is derived
+    pillar: null,
     calendarEventId: null,
     calendarSync: 'pending',
     createdAt: t,
     updatedAt: t,
     ...patch,
   }
+}
+
+export function newInboxItem(text, patch = {}) {
+  const t = stamp()
+  return { id: uid(), text: text || '', createdAt: t, processedAt: null, processedNote: '', updatedAt: t, ...patch }
 }
 
 export function tombstone(id, kind) {

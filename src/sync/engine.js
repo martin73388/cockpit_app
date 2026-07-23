@@ -47,6 +47,7 @@ export function createEngine({
   getGithubConfig,
   getDriveConfig,
   onStatus = () => {},
+  onCycleEnd = () => {}, // fired after EVERY cycle (launch/focus/online/manual)
   debounceMs = 1500,
   schedule = (fn, ms) => setTimeout(fn, ms),
   cancel = (h) => clearTimeout(h),
@@ -187,6 +188,11 @@ export function createEngine({
     } finally {
       running = false
       emit()
+      try {
+        onCycleEnd(reason)
+      } catch {
+        /* refresh hook must never break the sync loop */
+      }
       if (queued) {
         queued = false
         schedule(() => sync('coalesced'), 0)

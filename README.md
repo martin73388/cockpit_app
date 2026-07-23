@@ -9,11 +9,13 @@ multi-appareils calquée sur Radar / Carnet.
 > reste la **référence d'UI et de comportement**. Le runtime Design Component et
 > `support.js` ne sont **pas** réutilisés — uniquement comme spec vivante.
 
-## Périmètre v1 (strict)
+## Périmètre v2 (actuel)
 
-- ✅ Onglet **Todos** et onglet **Habitudes**.
-- ✅ Onglet **Dashboard** présent mais **désactivé** (badge « Bientôt », v2).
-- ❌ Pas de dashboard implémenté. ❌ Pas de suivi de complétion d'habitudes. (v2)
+- ✅ **Dashboard** (onglet par défaut) : capture rapide/inbox · brief du jour ·
+  aujourd'hui · vigilance vie (piliers) · alertes Radar/Carnet.
+- ✅ **Todos** (inchangé depuis v1) et **Habitudes** (coche « Fait aujourd'hui »,
+  historique 7 jours, pilier, fréquence « toutes les 2 semaines »).
+- ❌ Pas de stats, pas de notifications, pas de streaks (v3+).
 - ❌ L'app n'appelle **jamais** l'API Agenda (handshake display-only, voir plus bas).
 
 ## Démarrage
@@ -80,7 +82,7 @@ en **epoch ms**, `updatedAt` **monotone**, suppressions par **tombstones**.
 ```jsonc
 {
   "app": "cockpit",
-  "version": 1,
+  "version": 2,
   "todos": [
     {
       "id": "…", "title": "", "notes": "", "done": false, "doneAt": null,
@@ -93,15 +95,35 @@ en **epoch ms**, `updatedAt` **monotone**, suppressions par **tombstones**.
   "habits": [
     {
       "id": "…", "title": "", "notes": "", "active": true,
-      "schedule": { "frequency": "daily|weekly", "daysOfWeek": ["MO"…"SU"],
-                    "time": "HH:MM|", "durationMinutes": 30 },
+      "schedule": { "frequency": "daily|weekly|biweekly", "daysOfWeek": ["MO"…"SU"],
+                    "time": "HH:MM|", "durationMinutes": 30,
+                    "anchorDate": "YYYY-MM-DD|" },
+      "completions": ["YYYY-MM-DD"], "checks": { "YYYY-MM-DD": { "on": true, "at": 0 } },
+      "pillar": "sommeil|sport|couple|proches|repas|null",
       "calendarEventId": null, "calendarSync": "pending|synced|off",
       "createdAt": 0, "updatedAt": 0
     }
   ],
-  "deleted": [{ "id": "…", "at": 0, "kind": "todo|habit" }]
+  "inbox": [{ "id": "…", "text": "", "createdAt": 0, "processedAt": null,
+              "processedNote": "", "updatedAt": 0 }],
+  "deleted": [{ "id": "…", "at": 0, "kind": "todo|habit|inbox" }]
 }
 ```
+
+Migration v1→v2 automatique au chargement (défauts ajoutés, `version` réécrite),
+idempotente. Fusion : complétions en **CRDT par date** (`checks` : LWW par date,
+`completions` dérivé) — une coche faite sur un autre appareil n'est jamais
+perdue, et **décocher est durable** (pas de résurrection par union) ; `inbox` =
+union par id + tombstones. Garde : `version > 2` → « bloqué », jamais écrasé.
+
+## Sources lecture seule (rafraîchies à CHAQUE cycle)
+
+- `radar.json` / `carnet-data.json` (passerelle) → menu Projet + **alertes**
+  calculées par l'app (bloqué, en sommeil > 21 j, échéance ≤ 7 j, relance
+  dépassée, prioritaire jamais contacté). Source indisponible → section masquée.
+- `daily-brief.json` (déposé par l'assistant, `app:"cockpit-brief"`) → section
+  Brief. Absent ou daté d'un autre jour → « Pas de brief aujourd'hui ». L'app ne
+  l'écrit jamais.
 
 ## Synchronisation (le cœur du travail)
 

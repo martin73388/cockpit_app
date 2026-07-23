@@ -1,13 +1,19 @@
-// Dashboard is present but DISABLED in v1 (badge "bientôt"). No implementation
-// of the dashboard nor habit-completion tracking — that is v2.
-export function DashboardView() {
+import { QuickCapture } from './QuickCapture.jsx'
+import { BriefSection } from './BriefSection.jsx'
+import { TodaySection } from './TodaySection.jsx'
+import { PillarsSection } from './PillarsSection.jsx'
+import { AlertsSection } from './AlertsSection.jsx'
+
+// v2 Dashboard — the default tab. Five sections, in this order, mobile-first:
+// quick capture/inbox · daily brief · today · life vigilance · alerts.
+export function DashboardView({ sources, brief }) {
   return (
-    <div className="empty">
-      <span className="badge badge-soon" style={{ marginBottom: 12 }}>Bientôt</span>
-      <h3>Tableau de bord</h3>
-      <p className="muted">
-        Le tableau de bord et le suivi de complétion des habitudes arrivent en v2.
-      </p>
+    <div className="stack dashboard">
+      <QuickCapture />
+      <BriefSection brief={brief} />
+      <TodaySection />
+      <PillarsSection />
+      <AlertsSection sources={sources} />
     </div>
   )
 }
