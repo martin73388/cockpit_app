@@ -7,7 +7,7 @@
 //   merge) updates the UI WITHOUT scheduling another push — avoids feedback loops.
 import { stamp, observe } from './clock.js'
 import { emptyState, newTodo, newSubtask, newHabit, newInboxItem, tombstone } from './model.js'
-import { canonicalize } from '../sync/merge.js'
+import { canonicalize, stableStringify } from '../sync/merge.js'
 import { KEYS, load, save } from './persist.js'
 
 const ORDER_STEP = 1000
@@ -195,12 +195,19 @@ export function createStore(initial) {
       return habit.id
     },
     updateHabit(id, patch) {
-      // Any create/modify (re)opens the calendar handshake: pending + keep eventId.
+      // Only a SCHEDULE change (anchorDate included) re-opens the calendar
+      // handshake — title/notes/pillar edits keep the current sync status.
+      // (Active/pause is handled by toggleHabitActive, which always re-opens.)
       mutate((s) => ({
         ...s,
-        habits: s.habits.map((h) =>
-          h.id === id ? { ...h, ...patch, calendarSync: 'pending', updatedAt: stamp() } : h,
-        ),
+        habits: s.habits.map((h) => {
+          if (h.id !== id) return h
+          const scheduleChanged =
+            patch.schedule != null && stableStringify(patch.schedule) !== stableStringify(h.schedule)
+          const next = { ...h, ...patch, updatedAt: stamp() }
+          if (scheduleChanged) next.calendarSync = 'pending'
+          return next
+        }),
       }))
     },
     toggleHabitActive(id) {

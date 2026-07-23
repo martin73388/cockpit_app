@@ -30,8 +30,15 @@ export default function App() {
   const engineRef = useRef(null)
 
   // Persisted UI prefs helper (the active tab itself is session-only).
+  // Merge over the in-memory state — NOT over getUi(), whose tab is always the
+  // 'dashboard' default: rebuilding from storage would yank the user out of
+  // their current tab on any pref change (layout, sort, theme…).
   function updateUi(patch) {
-    setUiState(setUi(patch))
+    setUiState((prev) => {
+      const next = { ...prev, ...patch }
+      setUi(next) // persists everything except the tab
+      return next
+    })
   }
 
   // Theme.

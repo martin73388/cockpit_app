@@ -41,8 +41,12 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone()
-          caches.open(CACHE_VERSION).then((c) => c.put(SHELL_URL, copy)).catch(() => {})
+          // Only a healthy response may become the offline shell — a 404/500
+          // during a deploy must not poison the cached fallback.
+          if (res && res.ok) {
+            const copy = res.clone()
+            caches.open(CACHE_VERSION).then((c) => c.put(SHELL_URL, copy)).catch(() => {})
+          }
           return res
         })
         .catch(() => caches.match(SHELL_URL).then((r) => r || Response.error())),
