@@ -104,8 +104,8 @@ export function TodosView({ projects, ui, onUi }) {
           onKeyDown={(e) => e.key === 'Enter' && addTodo()}
           aria-label="Nouvelle tâche"
         />
-        <button className="btn btn-primary" onClick={addTodo}>
-          <IconPlus width={16} height={16} /> Ajouter
+        <button className="btn btn-primary" onClick={addTodo} aria-label="Ajouter">
+          <IconPlus width={16} height={16} /> <span className="hide-tiny">Ajouter</span>
         </button>
       </div>
 

@@ -743,3 +743,148 @@
   opacity: 0.45;
   text-decoration: line-through;
 }
+
+/* ============ Très petits écrans (ex. Unihertz Jelly Star 2 : ~240px CSS) ============ */
+
+/* Grilles fluides : jamais de colonne plus large que le conteneur. */
+.todo-list.cards {
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+}
+.habit-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+}
+
+@media (max-width: 374px) {
+  body {
+    font-size: 13.5px;
+  }
+  .hide-tiny {
+    display: none;
+  }
+  .container {
+    padding: var(--space-3) var(--space-2) var(--space-6);
+  }
+
+  /* En-tête compact */
+  .app-header-inner {
+    padding: var(--space-2);
+    gap: var(--space-2);
+  }
+  .brand {
+    font-size: 16px;
+  }
+  .brand img {
+    width: 22px;
+    height: 22px;
+  }
+  .sync-pill {
+    padding: 5px 8px;
+  }
+  .sync-label {
+    display: none;
+  }
+  .nav-tabs {
+    padding: 0 var(--space-2) var(--space-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .tab {
+    padding: 6px 10px;
+    font-size: 14px;
+    flex: none;
+  }
+
+  /* Barres d'outils : recherche pleine largeur, filtres en ligne défilante */
+  .toolbar .search {
+    flex-basis: 100%;
+  }
+  .filter-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .filter-row::-webkit-scrollbar {
+    display: none;
+  }
+  .filter-row .segmented,
+  .filter-row .select {
+    flex: none;
+  }
+  .segmented button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  .count-hint {
+    display: none;
+  }
+
+  /* Tâches : le titre prend toute la largeur, les actions passent dessous */
+  .todo-item {
+    flex-wrap: wrap;
+    padding: var(--space-2);
+    gap: var(--space-2);
+  }
+  .todo-main {
+    flex: 1 1 calc(100% - 40px);
+    min-width: 0;
+  }
+  .todo-actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+  .btn-icon {
+    padding: 5px;
+  }
+  .btn-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+  .todo-list.cards {
+    grid-template-columns: 1fr;
+  }
+
+  /* Dashboard / habitudes / modales : densité réduite */
+  .dash-section {
+    padding: var(--space-3);
+  }
+  .today-line {
+    flex-wrap: wrap;
+  }
+  .habit-card {
+    padding: var(--space-3);
+  }
+  .day-picker button {
+    width: 34px;
+    padding: 5px 0;
+  }
+  .modal-head,
+  .modal-body,
+  .modal-foot {
+    padding: var(--space-3);
+  }
+
+  /* Les rangées (titre + boutons, thème, actions de réglages…) se replient */
+  .row {
+    flex-wrap: wrap;
+  }
+  .settings-section {
+    padding: var(--space-3);
+  }
+
+  /* Toasts : pleine largeur en bas plutôt que centrés */
+  .toast {
+    left: var(--space-2);
+    right: var(--space-2);
+    transform: none;
+  }
+  .done-toast,
+  .update-toast {
+    flex-wrap: wrap;
+  }
+}

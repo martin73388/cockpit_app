@@ -28,7 +28,7 @@ export function SyncBadge({ status, onClick }) {
     <button className="sync-pill" onClick={onClick} title="Synchroniser maintenant" type="button">
       <span className={`sync-dot ${state}`} />
       <IconSync width={14} height={14} />
-      <span>{label}</span>
+      <span className="sync-label">{label}</span>
     </button>
   )
 }
