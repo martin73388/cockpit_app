@@ -53,11 +53,29 @@ export function radarAlerts(radar, today = todayISO()) {
   return out
 }
 
-// -> [{ source:'Radar'|'Carnet', url, items|null }] ; items===null means the
-// source is unavailable this cycle (render a discreet note, never an error).
-export function computeAlerts(sources, today = todayISO(), now = Date.now()) {
+// Sujets en panne (GTD « stalled ») : tâche active sans prochaine étape —
+// aucune sous-tâche restante, pas d'attente, pas d'échéance — et intouchée
+// depuis plus de STALLED_DAYS jours.
+const STALLED_DAYS = 7
+export function stalledTodos(todos, now = Date.now()) {
+  const out = []
+  for (const t of todos || []) {
+    if (t.status !== 'todo') continue
+    if (t.dueDate) continue
+    if (t.subtasks.some((st) => !st.done)) continue
+    if (now - t.updatedAt <= STALLED_DAYS * 86400000) continue
+    const days = Math.floor((now - t.updatedAt) / 86400000)
+    out.push({ kind: 'stalled', label: `${t.title} — sans prochaine étape depuis ${days} j` })
+  }
+  return out
+}
+
+// -> [{ source, url|null, items|null }] ; items===null means the source is
+// unavailable this cycle (render a discreet note, never an error).
+export function computeAlerts(sources, today = todayISO(), now = Date.now(), todos = []) {
   return [
     { source: 'Radar', url: RADAR_URL, items: radarAlerts(sources && sources.radar, today) },
     { source: 'Carnet', url: CARNET_URL, items: carnetAlerts(sources && sources.carnet, today, now) },
+    { source: 'Cockpit', url: null, items: stalledTodos(todos, now) },
   ]
 }

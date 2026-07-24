@@ -203,6 +203,11 @@ function canonTodo(t) {
         }
       : null
   if (status === 'waiting' && !waiting) status = 'todo' // waiting sans détail -> retombe à faire
+  const f = t.focus
+  const focus =
+    f && typeof f === 'object' && typeof f.date === 'string' && DATE_RE.test(f.date)
+      ? { date: f.date, count: Math.max(0, Math.floor(num(f.count))) }
+      : null
   return {
     id: t.id,
     title: typeof t.title === 'string' ? t.title : '',
@@ -211,6 +216,7 @@ function canonTodo(t) {
     doneAt: typeof t.doneAt === 'number' ? t.doneAt : null,
     status,
     waiting,
+    focus,
     priority,
     dueDate: typeof t.dueDate === 'string' ? t.dueDate : '',
     projectId: t.projectId == null ? null : String(t.projectId),

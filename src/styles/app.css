@@ -895,3 +895,36 @@
   color: var(--success);
   border-color: transparent;
 }
+
+/* ============ v4 — Continuité (focus, prochaine étape) ============ */
+
+.next-step {
+  display: block;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  padding: 2px 0 0;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.next-step:hover {
+  color: var(--primary);
+}
+.focus-star.on {
+  color: var(--warning);
+}
+.rollover-chip {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-color: transparent;
+}
+.rollover-chip.overdue {
+  background: var(--danger-bg);
+  color: var(--danger);
+}

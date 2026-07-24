@@ -1,10 +1,13 @@
 import { computeAlerts } from '../../utils/alerts.js'
+import { useStore } from '../../hooks/useStore.js'
+import { todayISO } from '../../utils/dates.js'
 
-// Section 5 — app-computed alerts from Radar / Carnet sources, grouped by
-// source, each group linking out to the app. An unavailable source shows a
-// discreet note — never a blocking error.
+// Section 5 — app-computed alerts from Radar / Carnet sources + Cockpit's own
+// stalled subjects, grouped by source. An unavailable source shows a discreet
+// note — never a blocking error.
 export function AlertsSection({ sources }) {
-  const groups = computeAlerts(sources)
+  const todos = useStore((s) => s.todos)
+  const groups = computeAlerts(sources, todayISO(), Date.now(), todos)
   const allEmpty = groups.every((g) => g.items !== null && g.items.length === 0)
 
   return (
@@ -24,9 +27,11 @@ export function AlertsSection({ sources }) {
           <div key={g.source} className="alert-group">
             <div className="row alert-group-head">
               <span className="label">{g.source}</span>
-              <a href={g.url} target="_blank" rel="noopener noreferrer" className="alert-open">
-                Ouvrir {g.source} ↗
-              </a>
+              {g.url && (
+                <a href={g.url} target="_blank" rel="noopener noreferrer" className="alert-open">
+                  Ouvrir {g.source} ↗
+                </a>
+              )}
             </div>
             {g.items.map((a, i) => (
               <div key={i} className={`alert-line kind-${a.kind}`}>

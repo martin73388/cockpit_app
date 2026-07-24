@@ -15,19 +15,43 @@ export function TodaySection() {
   const [waitingOpen, setWaitingOpen] = useState(false)
   const today = todayISO()
 
-  const overdue = todos.filter((t) => t.status !== 'waiting' && isOverdue(t, today)).sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1))
-  const dueToday = todos.filter((t) => t.status === 'todo' && t.dueDate === today)
+  const focusToday = todos.filter((t) => t.status === 'todo' && t.focus && t.focus.date === today)
+  const focusIds = new Set(focusToday.map((t) => t.id))
+  const overdue = todos
+    .filter((t) => t.status !== 'waiting' && !focusIds.has(t.id) && isOverdue(t, today))
+    .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1))
+  const dueToday = todos.filter((t) => t.status === 'todo' && !focusIds.has(t.id) && t.dueDate === today)
   const waiting = todos.filter((t) => t.status === 'waiting')
   const followUps = waiting.filter((t) => t.waiting?.followUpDate && t.waiting.followUpDate <= today)
   const plannedHabits = habits.filter((h) => h.active && scheduledOn(h, today))
 
-  const empty = overdue.length === 0 && dueToday.length === 0 && followUps.length === 0 && plannedHabits.length === 0
+  const empty =
+    focusToday.length === 0 && overdue.length === 0 && dueToday.length === 0 && followUps.length === 0 && plannedHabits.length === 0
 
   return (
     <section className="card dash-section" aria-label="Aujourd'hui">
       <h2>Aujourd'hui</h2>
       {empty && waiting.length === 0 && <p className="muted">Rien de planifié aujourd'hui.</p>}
       {empty && waiting.length > 0 && <p className="muted">Rien à faire — {waiting.length} sujet{waiting.length > 1 ? 's' : ''} en attente ci-dessous.</p>}
+
+      {focusToday.map((t) => (
+        <div key={t.id} className={`today-line ${isOverdue(t, today) ? 'overdue' : ''}`}>
+          <input
+            type="checkbox"
+            className="check check-sm"
+            checked={false}
+            onChange={() => store.toggleTodoDone(t.id)}
+            aria-label={`Terminer ${t.title}`}
+          />
+          <span className="today-title">⭐ {t.title}</span>
+          {t.focus.count > 0 && (
+            <span className={`chip rollover-chip ${t.focus.count >= 4 ? 'overdue' : ''}`} title={t.focus.count >= 4 ? 'Reportée 4 fois — tranche : attente, échéance ou retirer du focus' : ''}>
+              ↻ ×{t.focus.count}
+            </span>
+          )}
+          {t.dueDate && <span className={`chip ${isOverdue(t, today) ? 'overdue' : ''}`}>{dueLabel(t.dueDate, today)}</span>}
+        </div>
+      ))}
 
       {followUps.map((t) => (
         <div key={t.id} className={`today-line ${t.waiting.followUpDate < today ? 'overdue' : ''}`}>

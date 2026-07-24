@@ -6,7 +6,7 @@
 import { stamp } from './clock.js'
 
 export const APP = 'cockpit'
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 export const PRIORITIES = ['haute', 'normale', 'basse']
 export const PRIORITY_LABEL = { haute: 'Haute', normale: 'Normale', basse: 'Basse' }
@@ -54,6 +54,7 @@ export function newTodo(patch = {}) {
     doneAt: null,
     status: 'todo', // 'todo' | 'waiting' | 'done' — done reste synchronisé (dérivé)
     waiting: null, // { note, since(epoch ms), followUpDate("YYYY-MM-DD"|"") } quand status==='waiting'
+    focus: null, // { date("YYYY-MM-DD"), count } — épinglée au plan du jour ; count = reports
     priority: 'normale',
     dueDate: '',
     projectId: null,

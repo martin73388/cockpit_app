@@ -4,7 +4,7 @@ import { visibleTodos } from '../src/utils/todoView.js'
 import { createStore } from '../src/data/store.js'
 import { newTodo } from '../src/data/model.js'
 import { getUi, setUi } from '../src/data/ui.js'
-import { APP } from '../src/data/model.js'
+import { APP, SCHEMA_VERSION } from '../src/data/model.js'
 
 function todo(id, extra = {}) {
   return { id, title: id, notes: '', done: false, doneAt: null, status: 'todo', waiting: null, priority: 'normale', dueDate: '', projectId: null, order: 0, subtasks: [], createdAt: 1, updatedAt: 1, ...extra }
@@ -17,7 +17,7 @@ describe('migration v2 -> v3 (status/waiting)', () => {
   it('dérive status depuis done et émet waiting:null', () => {
     const v2 = state({ version: 2, todos: [{ ...todo('t1'), status: undefined, waiting: undefined }, { ...todo('t2', { done: true }), status: undefined, waiting: undefined }] })
     const m = canonicalize(v2)
-    expect(m.version).toBe(3)
+    expect(m.version).toBe(SCHEMA_VERSION)
     expect(m.todos[0].status).toBe('todo')
     expect(m.todos[0].waiting).toBe(null)
     expect(m.todos[1].status).toBe('done')

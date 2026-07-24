@@ -174,13 +174,13 @@ describe('foreign-file guard', () => {
 
 describe('schema-version guard', () => {
   it('never merges or overwrites a newer-schema remote', async () => {
-    const v3 = { app: 'cockpit', version: 4, todos: [todo('future', 9)], habits: [], deleted: [] }
+    const v3 = { app: 'cockpit', version: SCHEMA_VERSION + 1, todos: [todo('future', 9)], habits: [], deleted: [] }
     const store = fakeStore(state({ todos: [todo('mine', 5)] }))
     const gh = fakeRemote({ content: v3 })
     let status
     await engineWith(store, gh, fakeRemote({ configured: false }), (s) => (status = s)).sync('test')
     expect(gh.calls.writes).toBe(0)
-    expect(gh.peek().version).toBe(4) // untouched
+    expect(gh.peek().version).toBe(SCHEMA_VERSION + 1) // untouched
     expect(store.getSnapshot().todos.map((t) => t.id)).toEqual(['mine']) // v3 data not pulled in
     expect(status.github.state).toBe('blocked')
   })

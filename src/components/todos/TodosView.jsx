@@ -7,6 +7,7 @@ import { reorderList } from '../../utils/reorder.js'
 import { TodoItem } from './TodoItem.jsx'
 import { TodoEditModal } from './TodoEditModal.jsx'
 import { WaitingDialog } from './WaitingDialog.jsx'
+import { FollowUpDialog } from './FollowUpDialog.jsx'
 import { IconPlus, IconSearch } from '../common/Icons.jsx'
 
 const ALL_PRIORITIES = ['haute', 'normale', 'basse']
@@ -17,6 +18,7 @@ export function TodosView({ projects, ui, onUi }) {
   const [draft, setDraft] = useState('')
   const [editId, setEditId] = useState(null)
   const [waitingId, setWaitingId] = useState(null)
+  const [followUpId, setFollowUpId] = useState(null)
   const [justDone, setJustDone] = useState(null) // { id, title } -> toast « En attente d'une suite ? »
   const [dragId, setDragId] = useState(null)
   const [overId, setOverId] = useState(null)
@@ -39,6 +41,7 @@ export function TodosView({ projects, ui, onUi }) {
   const sortable = ui.sort === 'manual' && !query.trim() && ui.status === 'all' && allPrios
   const editTodo = editId ? todos.find((t) => t.id === editId) : null
   const waitingTodo = waitingId ? todos.find((t) => t.id === waitingId) : null
+  const followUpTodo = followUpId ? todos.find((t) => t.id === followUpId) : null
 
   function addTodo() {
     const id = store.addTodo(draft)
@@ -69,6 +72,13 @@ export function TodosView({ projects, ui, onUi }) {
       if (t.status === 'done') store.toggleTodoDone(t.id) // annule le done
       setWaitingId(t.id) // le dialogue posera note + date puis passera en attente
     }
+    clearTimeout(doneTimer.current)
+    setJustDone(null)
+  }
+
+  // « Créer la suite » : la tâche RESTE terminée ; on crée l'action suivante.
+  function followUpFromToast() {
+    setFollowUpId(justDone.id)
     clearTimeout(doneTimer.current)
     setJustDone(null)
   }
@@ -194,11 +204,13 @@ export function TodosView({ projects, ui, onUi }) {
 
       {editTodo && <TodoEditModal todo={editTodo} projects={projects} onClose={() => setEditId(null)} />}
       {waitingTodo && <WaitingDialog todo={waitingTodo} onClose={() => setWaitingId(null)} />}
+      {followUpTodo && <FollowUpDialog sourceTodo={followUpTodo} onClose={() => setFollowUpId(null)} />}
 
       {justDone && (
         <div className="toast done-toast" role="status">
-          ✓ « {justDone.title.slice(0, 32)} » terminée
-          <button className="btn btn-sm" onClick={waitFromToast}>📩 En attente d'une suite ?</button>
+          ✓ « {justDone.title.slice(0, 24)} » terminée
+          <button className="btn btn-sm" onClick={followUpFromToast}>➕ La suite</button>
+          <button className="btn btn-sm" onClick={waitFromToast}>📩 En attente</button>
         </div>
       )}
     </div>

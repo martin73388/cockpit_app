@@ -3,7 +3,7 @@ import { mergeStates, canonicalize, serialize } from '../src/sync/merge.js'
 import { scheduledOn, describeSchedule, mondayOf, addDaysISO } from '../src/utils/recurrence.js'
 import { briefStatus, isBriefFile } from '../src/sync/brief.js'
 import { carnetAlerts, radarAlerts, computeAlerts } from '../src/utils/alerts.js'
-import { APP } from '../src/data/model.js'
+import { APP, SCHEMA_VERSION } from '../src/data/model.js'
 
 function habit(id, updatedAt, extra = {}) {
   return {
@@ -116,7 +116,7 @@ describe('migration v1 -> v2', () => {
 
   it('adds defaults and rewrites version to current schema', () => {
     const m = canonicalize(v1)
-    expect(m.version).toBe(3)
+    expect(m.version).toBe(SCHEMA_VERSION)
     expect(m.inbox).toEqual([])
     expect(m.habits[0].completions).toEqual([])
     expect(m.habits[0].pillar).toBe(null)

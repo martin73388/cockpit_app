@@ -91,6 +91,7 @@ export function createStore(initial) {
             done,
             status: done ? 'done' : 'todo',
             waiting: null, // terminer ou reprendre clôt l'attente en cours
+            focus: done ? null : x.focus, // terminée -> sort du plan du jour
             doneAt: done ? stamp() : null,
             subtasks,
             updatedAt: stamp(),
@@ -116,6 +117,49 @@ export function createStore(initial) {
             : x,
         ),
       }))
+    },
+    // Épingle / retire une tâche du plan du jour (⭐ Focus).
+    toggleFocus(id, today) {
+      mutate((s) => ({
+        ...s,
+        todos: s.todos.map((x) =>
+          x.id === id
+            ? { ...x, focus: x.focus ? null : { date: today, count: 0 }, updatedAt: stamp() }
+            : x,
+        ),
+      }))
+    },
+    // Report à la Sunsama : au premier passage d'un nouveau jour, les tâches
+    // épinglées non terminées roulent vers aujourd'hui (count + 1). Idempotent.
+    rolloverFocus(today) {
+      mutate((s) => {
+        let changed = false
+        const todos = s.todos.map((x) => {
+          if (x.status === 'done' || !x.focus || x.focus.date >= today) return x
+          changed = true
+          return { ...x, focus: { date: today, count: x.focus.count + 1 }, updatedAt: stamp() }
+        })
+        return changed ? { ...s, todos } : s
+      })
+    },
+    // « Créer la suite » : nouvelle tâche héritant du projet et de la priorité.
+    addFollowUpTodo(sourceId, { title, dueDate = '' } = {}) {
+      const t = (title || '').trim()
+      if (!t) return null
+      let created = null
+      mutate((s) => {
+        const src = s.todos.find((x) => x.id === sourceId)
+        const maxOrder = s.todos.reduce((m, x) => Math.max(m, x.order || 0), 0)
+        created = newTodo({
+          title: t,
+          dueDate,
+          priority: src ? src.priority : 'normale',
+          projectId: src ? src.projectId : null,
+          order: maxOrder + ORDER_STEP,
+        })
+        return { ...s, todos: [...s.todos, created] }
+      })
+      return created ? created.id : null
     },
     // La réponse est arrivée : la tâche redevient « À faire ».
     resumeTodo(id) {

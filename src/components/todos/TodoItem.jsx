@@ -8,6 +8,7 @@ import { ConfirmDelete } from '../common/ConfirmDelete.jsx'
 import { IconCopy, IconEdit, IconGrip, IconCalendar } from '../common/Icons.jsx'
 
 export function TodoItem({ todo, projectsById, layout, sortable, drag, onOpenModal, onToggleDone, onWait }) {
+  const today = todayISO()
   const [editing, setEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState(todo.title)
   const [open, setOpen] = useState(false)
@@ -15,6 +16,8 @@ export function TodoItem({ todo, projectsById, layout, sortable, drag, onOpenMod
   const overdue = isOverdue(todo)
   const progress = todoProgress(todo)
   const projectLabel = todo.projectId ? projectsById.get(todo.projectId)?.label : null
+  const nextStep = todo.status === 'todo' ? todo.subtasks.find((st) => !st.done) : null
+  const focusedToday = todo.focus && todo.focus.date === today
 
   function commitTitle() {
     const t = draftTitle.trim()
@@ -97,7 +100,18 @@ export function TodoItem({ todo, projectsById, layout, sortable, drag, onOpenMod
 
         {layout === 'cards' && todo.notes && <div className="todo-notes">{todo.notes}</div>}
 
+        {!open && nextStep && (
+          <button type="button" className="next-step" onClick={() => setOpen(true)} title="Prochaine étape — ouvrir les sous-tâches">
+            → {nextStep.title}
+          </button>
+        )}
+
         <div className="todo-meta">
+          {focusedToday && todo.focus.count > 0 && (
+            <span className={`chip rollover-chip ${todo.focus.count >= 4 ? 'overdue' : ''}`} title={todo.focus.count >= 4 ? 'Reportée 4 fois — tranche : attente, échéance ou retirer du focus' : 'Reportée depuis ' + todo.focus.count + ' jour(s)'}>
+              ↻ ×{todo.focus.count}
+            </span>
+          )}
           {todo.status === 'waiting' && todo.waiting && (
             <span
               className={`chip waiting-chip ${
@@ -138,6 +152,17 @@ export function TodoItem({ todo, projectsById, layout, sortable, drag, onOpenMod
       </div>
 
       <div className="todo-actions">
+        {todo.status !== 'done' && (
+          <button
+            className={`btn btn-ghost btn-icon focus-star ${focusedToday ? 'on' : ''}`}
+            onClick={() => store.toggleFocus(todo.id, today)}
+            title={focusedToday ? 'Retirer du focus du jour' : 'Épingler au focus du jour'}
+            aria-label="Focus du jour"
+            aria-pressed={!!focusedToday}
+          >
+            <span aria-hidden="true">{focusedToday ? '⭐' : '☆'}</span>
+          </button>
+        )}
         {todo.status === 'waiting' ? (
           <button className="btn btn-sm" onClick={() => store.resumeTodo(todo.id)} title="La réponse est arrivée : reprendre">
             Reprendre

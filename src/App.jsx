@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { store } from './data/store.js'
 import { getUi, setUi } from './data/ui.js'
 import { getGithubConfig, getDriveConfig } from './data/config.js'
+import { todayISO } from './utils/dates.js'
 import { createEngine } from './sync/engine.js'
 import { fetchSources, loadCachedSources, projectsOf } from './sync/sources.js'
 import { fetchBrief, loadCachedBrief } from './sync/brief.js'
@@ -48,6 +49,9 @@ export default function App() {
   // EVERY sync cycle (launch / focus / online / manual), not just at launch.
   const refreshSources = useMemo(
     () => () => {
+      // Report à la Sunsama : les ⭐ non terminées d'hier roulent vers
+      // aujourd'hui (idempotent — no-op si déjà à jour).
+      store.rolloverFocus(todayISO())
       const cfg = getDriveConfig()
       fetchSources(cfg).then(setSources).catch(() => {})
       fetchBrief(cfg).then(setBrief).catch(() => {})
@@ -72,6 +76,7 @@ export default function App() {
     const engine = engineRef.current
     engine.start()
     store.purgeProcessedInbox() // silent 30-day purge of processed inbox items
+    store.rolloverFocus(todayISO())
     return () => engine.stop()
   }, [])
 
