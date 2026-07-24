@@ -341,13 +341,15 @@ export function createStore(initial) {
   return store
 }
 
-// Keep a todo's own done flag consistent with its subtasks:
-// all subtasks done -> todo done; any subtask undone -> todo not done.
+// Children -> parent, one direction only: unchecking a subtask REOPENS a
+// completed parent. The reverse (auto-completing the parent when every subtask
+// is checked) was removed on purpose: completing stays an explicit gesture, so
+// the « En attente d'une suite ? » flow is never bypassed and nothing closes
+// itself behind the user's back.
 function reconcileParent(todo) {
   if (!todo.subtasks.length) return todo
   const allDone = todo.subtasks.every((st) => st.done)
-  if (allDone && !todo.done) return { ...todo, done: true, doneAt: stamp() }
-  if (!allDone && todo.done) return { ...todo, done: false, doneAt: null }
+  if (!allDone && todo.done) return { ...todo, done: false, status: 'todo', doneAt: null }
   return todo
 }
 

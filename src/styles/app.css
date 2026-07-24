@@ -888,3 +888,10 @@
     flex-wrap: wrap;
   }
 }
+
+/* Sous-tâches toutes cochées : invite à terminer explicitement la tâche. */
+.chip.progress-complete {
+  background: var(--success-bg);
+  color: var(--success);
+  border-color: transparent;
+}

@@ -55,3 +55,41 @@ describe('updateHabit — seul un changement de schedule rouvre le handshake', (
     expect(st.getSnapshot().habits[0].calendarSync).toBe('pending')
   })
 })
+
+describe('sous-tâches ↔ parent (v3.1 : plus d’auto-complétion)', () => {
+  function storeWithSubtasks() {
+    const st = createStore(canonicalize({ app: 'cockpit', version: 3, todos: [], habits: [], inbox: [], deleted: [] }))
+    const id = st.addTodo('Tâche à étapes')
+    st.addSubtask(id, 'étape 1')
+    st.addSubtask(id, 'étape 2')
+    return { st, id }
+  }
+  it('cocher la DERNIÈRE sous-tâche ne termine PAS la tâche', () => {
+    const { st, id } = storeWithSubtasks()
+    const subs = st.getSnapshot().todos[0].subtasks
+    st.toggleSubtask(id, subs[0].id)
+    st.toggleSubtask(id, subs[1].id)
+    const t = st.getSnapshot().todos[0]
+    expect(t.subtasks.every((x) => x.done)).toBe(true)
+    expect(t.done).toBe(false) // la complétion reste un geste explicite
+    expect(t.status).toBe('todo')
+  })
+  it('décocher une sous-tâche rouvre une tâche terminée', () => {
+    const { st, id } = storeWithSubtasks()
+    st.toggleTodoDone(id) // coche tout
+    let t = st.getSnapshot().todos[0]
+    expect(t.done).toBe(true)
+    expect(t.subtasks.every((x) => x.done)).toBe(true)
+    st.toggleSubtask(id, t.subtasks[0].id)
+    t = st.getSnapshot().todos[0]
+    expect(t.done).toBe(false)
+    expect(t.status).toBe('todo')
+  })
+  it('cocher la tâche coche toujours toutes les sous-tâches (sens parent → enfants conservé)', () => {
+    const { st, id } = storeWithSubtasks()
+    st.toggleTodoDone(id)
+    const t = st.getSnapshot().todos[0]
+    expect(t.done).toBe(true)
+    expect(t.subtasks.every((x) => x.done)).toBe(true)
+  })
+})

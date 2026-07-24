@@ -118,7 +118,12 @@ export function TodoItem({ todo, projectsById, layout, sortable, drag, onOpenMod
           )}
           {projectLabel && <span className="chip">{projectLabel}</span>}
           {progress.total > 0 && (
-            <button className="chip" onClick={() => setOpen((o) => !o)} type="button">
+            <button
+              className={`chip ${progress.done === progress.total && !todo.done ? 'progress-complete' : ''}`}
+              onClick={() => setOpen((o) => !o)}
+              type="button"
+              title={progress.done === progress.total && !todo.done ? 'Tout est coché — termine la tâche quand tu veux' : undefined}
+            >
               ☑ {progress.done}/{progress.total}
             </button>
           )}
