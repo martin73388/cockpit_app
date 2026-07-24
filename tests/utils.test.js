@@ -30,7 +30,7 @@ describe('visibleTodos (filter/sort/search)', () => {
     todo('t2', { title: 'Rapport', notes: 'urgent', order: 10, createdAt: 2, priority: 'haute', dueDate: '2020-01-01' }),
     todo('t3', { title: 'Sport', order: 20, createdAt: 3, done: true }),
   ]
-  const base = { query: '', status: 'all', priority: 'all', sort: 'manual' }
+  const base = { query: '', status: 'all', priorities: ['haute', 'normale', 'basse'], sort: 'manual' }
 
   it('manual sort honors order', () => {
     expect(visibleTodos(todos, base).map((t) => t.id)).toEqual(['t2', 't3', 't1'])
@@ -42,8 +42,10 @@ describe('visibleTodos (filter/sort/search)', () => {
   it('status=overdue uses dueDate < today and not done', () => {
     expect(visibleTodos(todos, { ...base, status: 'overdue' }, () => '', '2026-07-20').map((t) => t.id)).toEqual(['t2'])
   })
-  it('priority filter', () => {
-    expect(visibleTodos(todos, { ...base, priority: 'haute' }).map((t) => t.id)).toEqual(['t2'])
+  it('priority filter (multi-choix)', () => {
+    expect(visibleTodos(todos, { ...base, priorities: ['haute'] }).map((t) => t.id)).toEqual(['t2'])
+    // haute + normale sans les basses (le cas demandé)
+    expect(visibleTodos(todos, { ...base, priorities: ['haute', 'normale'] }).map((t) => t.id)).toEqual(['t2', 't3'])
   })
   it('search matches title, notes, subtasks and project label', () => {
     expect(visibleTodos(todos, { ...base, query: 'urgent' }).map((t) => t.id)).toEqual(['t2'])

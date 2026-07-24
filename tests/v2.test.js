@@ -114,9 +114,9 @@ describe('migration v1 -> v2', () => {
     deleted: [{ id: 'x', at: 5, kind: 'todo' }],
   }
 
-  it('adds defaults and rewrites version to 2', () => {
+  it('adds defaults and rewrites version to current schema', () => {
     const m = canonicalize(v1)
-    expect(m.version).toBe(2)
+    expect(m.version).toBe(3)
     expect(m.inbox).toEqual([])
     expect(m.habits[0].completions).toEqual([])
     expect(m.habits[0].pillar).toBe(null)

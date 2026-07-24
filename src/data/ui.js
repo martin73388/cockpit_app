@@ -5,14 +5,20 @@ const DEFAULT_UI = {
   tab: 'dashboard', // v2: dashboard is the default tab (not persisted)
   layout: 'rows', // 'rows' | 'cards'
   sort: 'manual', // manual | due | priority | created
-  status: 'all', // all | todo | done | overdue
-  priority: 'all', // all | haute | normale | basse
+  status: 'all', // all | todo | waiting | done | overdue
+  priorities: ['haute', 'normale', 'basse'], // puces cochables (multi-choix)
   theme: 'system', // system | light | dark
 }
 
 export function getUi() {
   const stored = load(KEYS.ui) || {}
   delete stored.tab // older versions persisted the tab; always open on Dashboard
+  // Migration du pref v2 (priority: 'all'|'haute'|…) vers le multi-choix.
+  if (typeof stored.priority === 'string') {
+    stored.priorities = stored.priority === 'all' ? ['haute', 'normale', 'basse'] : [stored.priority]
+    delete stored.priority
+  }
+  if (!Array.isArray(stored.priorities) || stored.priorities.length === 0) delete stored.priorities
   return { ...DEFAULT_UI, ...stored }
 }
 export function setUi(patch) {

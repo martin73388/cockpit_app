@@ -21,12 +21,19 @@ function matchesQuery(todo, q, projectLabel) {
   return hay.includes(q)
 }
 
+function statusOf(todo) {
+  return todo.status || (todo.done ? 'done' : 'todo')
+}
+
 function matchesStatus(todo, status, today) {
   switch (status) {
     case 'todo':
-      return !todo.done
+      // « À faire » exclut les tâches en attente (elles ont leur propre puce).
+      return statusOf(todo) === 'todo'
+    case 'waiting':
+      return statusOf(todo) === 'waiting'
     case 'done':
-      return todo.done
+      return statusOf(todo) === 'done'
     case 'overdue':
       return isOverdue(todo, today)
     default:
@@ -53,9 +60,10 @@ const COMPARATORS = {
 export function visibleTodos(todos, filters, projectLabelOf = () => '', today = undefined) {
   const q = (filters.query || '').trim().toLowerCase()
   const cmp = COMPARATORS[filters.sort] || COMPARATORS.manual
+  const prios = Array.isArray(filters.priorities) ? filters.priorities : null
   const filtered = todos.filter((t) => {
     if (!matchesStatus(t, filters.status, today)) return false
-    if (filters.priority && filters.priority !== 'all' && t.priority !== filters.priority) return false
+    if (prios && prios.length > 0 && prios.length < 3 && !prios.includes(t.priority)) return false
     if (!matchesQuery(t, q, projectLabelOf(t.projectId))) return false
     return true
   })

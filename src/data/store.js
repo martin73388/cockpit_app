@@ -83,11 +83,49 @@ export function createStore(initial) {
         ...s,
         todos: s.todos.map((x) => {
           if (x.id !== id) return x
-          const done = !x.done
+          const done = x.status !== 'done'
           // Parent -> children: (un)completing the todo (un)checks every subtask.
           const subtasks = x.subtasks.map((st) => ({ ...st, done }))
-          return { ...x, done, doneAt: done ? stamp() : null, subtasks, updatedAt: stamp() }
+          return {
+            ...x,
+            done,
+            status: done ? 'done' : 'todo',
+            waiting: null, // terminer ou reprendre clôt l'attente en cours
+            doneAt: done ? stamp() : null,
+            subtasks,
+            updatedAt: stamp(),
+          }
         }),
+      }))
+    },
+    // Passe une tâche « En attente » (d'une réponse, d'un événement…).
+    // note = de quoi/qui on attend ; followUpDate = relance optionnelle.
+    setTodoWaiting(id, { note = '', followUpDate = '' } = {}) {
+      mutate((s) => ({
+        ...s,
+        todos: s.todos.map((x) =>
+          x.id === id
+            ? {
+                ...x,
+                done: false,
+                doneAt: null,
+                status: 'waiting',
+                waiting: { note, since: stamp(), followUpDate },
+                updatedAt: stamp(),
+              }
+            : x,
+        ),
+      }))
+    },
+    // La réponse est arrivée : la tâche redevient « À faire ».
+    resumeTodo(id) {
+      mutate((s) => ({
+        ...s,
+        todos: s.todos.map((x) =>
+          x.id === id && x.status === 'waiting'
+            ? { ...x, status: 'todo', waiting: null, updatedAt: stamp() }
+            : x,
+        ),
       }))
     },
     duplicateTodo(id) {

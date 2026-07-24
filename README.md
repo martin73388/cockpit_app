@@ -82,10 +82,12 @@ en **epoch ms**, `updatedAt` **monotone**, suppressions par **tombstones**.
 ```jsonc
 {
   "app": "cockpit",
-  "version": 2,
+  "version": 3,
   "todos": [
     {
       "id": "…", "title": "", "notes": "", "done": false, "doneAt": null,
+      "status": "todo|waiting|done",
+      "waiting": { "note": "", "since": 0, "followUpDate": "YYYY-MM-DD|" },
       "priority": "haute|normale|basse", "dueDate": "YYYY-MM-DD|",
       "projectId": null, "order": 0,
       "subtasks": [{ "id": "…", "title": "", "done": false }],
@@ -110,11 +112,13 @@ en **epoch ms**, `updatedAt` **monotone**, suppressions par **tombstones**.
 }
 ```
 
-Migration v1→v2 automatique au chargement (défauts ajoutés, `version` réécrite),
+v3 : statut « En attente » sur les todos (`status`/`waiting` — sortie de « À faire »,
+relance datée, garde-fou 7 j au Dashboard) + filtre priorités multi-choix.
+Migration v1→v2→v3 automatique au chargement (défauts ajoutés, `version` réécrite),
 idempotente. Fusion : complétions en **CRDT par date** (`checks` : LWW par date,
 `completions` dérivé) — une coche faite sur un autre appareil n'est jamais
 perdue, et **décocher est durable** (pas de résurrection par union) ; `inbox` =
-union par id + tombstones. Garde : `version > 2` → « bloqué », jamais écrasé.
+union par id + tombstones. Garde : `version > 3` → « bloqué », jamais écrasé.
 
 ## Sources lecture seule (rafraîchies à CHAQUE cycle)
 

@@ -714,3 +714,32 @@
   align-items: center;
   gap: var(--space-3);
 }
+
+/* ============ v3 — En attente & priorités multi ============ */
+
+.waiting-chip {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-color: transparent;
+}
+.waiting-chip.overdue {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.waiting-block {
+  margin-top: var(--space-2);
+  border-top: 1px dashed var(--border);
+  padding-top: var(--space-1);
+}
+.today-line.waiting .today-title {
+  font-weight: 500;
+}
+.done-toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.prio-picker button[aria-pressed='false'] {
+  opacity: 0.45;
+  text-decoration: line-through;
+}

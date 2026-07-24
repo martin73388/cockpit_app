@@ -189,12 +189,28 @@ function canonSubtask(s) {
 
 function canonTodo(t) {
   const priority = PRIORITIES.includes(t.priority) ? t.priority : 'normale'
+  // v3 : status ('todo'|'waiting'|'done'). Migration v2 : dérivé de done.
+  // `done` reste émis et synchronisé (status==='done') pour tout lecteur externe.
+  let status = ['todo', 'waiting', 'done'].includes(t.status) ? t.status : (t.done ? 'done' : 'todo')
+  if (t.done && status !== 'done') status = 'done' // done coché prime (cohérence)
+  const w = t.waiting
+  const waiting =
+    status === 'waiting' && w && typeof w === 'object'
+      ? {
+          note: typeof w.note === 'string' ? w.note : '',
+          since: num(w.since),
+          followUpDate: typeof w.followUpDate === 'string' && DATE_RE.test(w.followUpDate) ? w.followUpDate : '',
+        }
+      : null
+  if (status === 'waiting' && !waiting) status = 'todo' // waiting sans détail -> retombe à faire
   return {
     id: t.id,
     title: typeof t.title === 'string' ? t.title : '',
     notes: typeof t.notes === 'string' ? t.notes : '',
-    done: !!t.done,
+    done: status === 'done',
     doneAt: typeof t.doneAt === 'number' ? t.doneAt : null,
+    status,
+    waiting,
     priority,
     dueDate: typeof t.dueDate === 'string' ? t.dueDate : '',
     projectId: t.projectId == null ? null : String(t.projectId),

@@ -6,15 +6,17 @@
 import { stamp } from './clock.js'
 
 export const APP = 'cockpit'
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 export const PRIORITIES = ['haute', 'normale', 'basse']
 export const PRIORITY_LABEL = { haute: 'Haute', normale: 'Normale', basse: 'Basse' }
 // Ascending weight so "priority" sort puts haute first.
 export const PRIORITY_WEIGHT = { haute: 0, normale: 1, basse: 2 }
 
-export const STATUS_FILTERS = ['all', 'todo', 'done', 'overdue']
-export const STATUS_LABEL = { all: 'Toutes', todo: 'À faire', done: 'Faites', overdue: 'En retard' }
+export const STATUS_FILTERS = ['all', 'todo', 'waiting', 'done', 'overdue']
+export const STATUS_LABEL = { all: 'Toutes', todo: 'À faire', waiting: 'En attente', done: 'Faites', overdue: 'En retard' }
+
+export const TODO_STATUSES = ['todo', 'waiting', 'done']
 
 export const SORTS = ['manual', 'due', 'priority', 'created']
 export const SORT_LABEL = { manual: 'Manuel', due: 'Échéance', priority: 'Priorité', created: 'Création' }
@@ -50,6 +52,8 @@ export function newTodo(patch = {}) {
     notes: '',
     done: false,
     doneAt: null,
+    status: 'todo', // 'todo' | 'waiting' | 'done' — done reste synchronisé (dérivé)
+    waiting: null, // { note, since(epoch ms), followUpDate("YYYY-MM-DD"|"") } quand status==='waiting'
     priority: 'normale',
     dueDate: '',
     projectId: null,

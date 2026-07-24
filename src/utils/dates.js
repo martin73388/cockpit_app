@@ -12,6 +12,12 @@ export function addDaysISO(iso, n) {
   return todayISO(d)
 }
 
+// Nombre de jours entiers écoulés depuis un instant epoch-ms.
+export function daysSince(epochMs, now = Date.now()) {
+  if (!epochMs) return 0
+  return Math.max(0, Math.floor((now - epochMs) / 86400000))
+}
+
 export function isOverdue(todo, today = todayISO()) {
   return !todo.done && !!todo.dueDate && todo.dueDate < today
 }
