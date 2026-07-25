@@ -928,3 +928,17 @@
   background: var(--danger-bg);
   color: var(--danger);
 }
+
+/* Météo du brief : ligne discrète sous l'en-tête */
+.brief-weather {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-2);
+}
+.brief-weather .weather-loc {
+  font-weight: 600;
+}

@@ -1,6 +1,26 @@
 import { briefStatus } from '../../sync/brief.js'
 
 const SOURCE_DOT = { radar: '📡', carnet: '📓', cockpit: '🧭', gmail: '✉️' }
+const WEATHER_ICON = { sun: '☀️', cloud: '☁️', rain: '🌧️', storm: '⛈️', snow: '❄️', fog: '🌫️', partly: '⛅' }
+
+// Ligne météo discrète (fournie par l'assistant dans le brief — aucune API
+// appelée par l'app). Rien ne s'affiche quand le champ est absent.
+function WeatherLine({ weather }) {
+  if (!weather) return null
+  const parts = []
+  if (weather.tempMin != null && weather.tempMax != null) parts.push(`${weather.tempMin}–${weather.tempMax}°${weather.unit}`)
+  else if (weather.tempMax != null) parts.push(`${weather.tempMax}°${weather.unit}`)
+  else if (weather.tempMin != null) parts.push(`${weather.tempMin}°${weather.unit}`)
+  if (weather.rainChance != null) parts.push(`🌧 ${weather.rainChance} %`)
+  return (
+    <p className="brief-weather">
+      {weather.icon && <span aria-hidden="true">{WEATHER_ICON[weather.icon]}</span>}
+      {weather.location && <span className="weather-loc">{weather.location} ·</span>}
+      <span>{weather.summary}</span>
+      {parts.length > 0 && <span className="faint">· {parts.join(' · ')}</span>}
+    </p>
+  )
+}
 
 // Section 2 — daily brief (read-only JSON deposited by the assistant).
 export function BriefSection({ brief }) {
@@ -25,6 +45,7 @@ export function BriefSection({ brief }) {
           </span>
         )}
       </div>
+      <WeatherLine weather={b.weather} />
       {b.headline && <p className="brief-headline">{b.headline}</p>}
 
       {b.agenda.length > 0 && (

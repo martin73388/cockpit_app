@@ -104,3 +104,26 @@ describe('v4 : sujets en panne (stalled)', () => {
     expect(cockpit.items).toHaveLength(1)
   })
 })
+
+// ---- Brief : champ weather optionnel ----
+import { canonBrief } from '../src/sync/brief.js'
+
+describe('brief.weather (optionnel)', () => {
+  const base = { app: 'cockpit-brief', date: '2026-07-25' }
+  it('absent -> null (rien affiché)', () => {
+    expect(canonBrief(base).weather).toBe(null)
+  })
+  it('valide complet -> normalisé', () => {
+    const b = canonBrief({ ...base, weather: { location: 'Londres', summary: 'Nuageux, éclaircies', tempMin: 14, tempMax: 21, unit: 'C', rainChance: 40, icon: 'cloud' } })
+    expect(b.weather).toEqual({ location: 'Londres', summary: 'Nuageux, éclaircies', tempMin: 14, tempMax: 21, unit: 'C', rainChance: 40, icon: 'cloud' })
+  })
+  it('summary manquant ou vide -> bloc ignoré', () => {
+    expect(canonBrief({ ...base, weather: { location: 'Paris' } }).weather).toBe(null)
+    expect(canonBrief({ ...base, weather: { summary: '   ' } }).weather).toBe(null)
+  })
+  it('sous-champs optionnels : minimal accepté, icône inconnue -> null, pluie bornée 0..100', () => {
+    const b = canonBrief({ ...base, weather: { summary: 'Beau', icon: 'tornado', rainChance: 250 } })
+    expect(b.weather).toEqual({ location: '', summary: 'Beau', tempMin: null, tempMax: null, unit: 'C', rainChance: 100, icon: null })
+    expect(canonBrief({ ...base, weather: { summary: 'Froid', tempMin: 0, unit: 'F' } }).weather.tempMin).toBe(0)
+  })
+})

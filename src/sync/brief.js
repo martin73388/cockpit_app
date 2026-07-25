@@ -14,8 +14,26 @@ export function isBriefFile(obj) {
   return !!obj && obj.app === 'cockpit-brief'
 }
 
+const WEATHER_ICONS = ['sun', 'cloud', 'rain', 'storm', 'snow', 'fog', 'partly']
+
+// weather est optionnel ; summary est le seul sous-champ requis. Un bloc
+// invalide est simplement ignoré (null -> rien d'affiché).
+function canonWeather(w) {
+  if (!w || typeof w !== 'object' || typeof w.summary !== 'string' || !w.summary.trim()) return null
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null)
+  return {
+    location: typeof w.location === 'string' ? w.location : '',
+    summary: w.summary.trim(),
+    tempMin: num(w.tempMin),
+    tempMax: num(w.tempMax),
+    unit: typeof w.unit === 'string' && w.unit ? w.unit : 'C',
+    rainChance: w.rainChance == null ? null : Math.max(0, Math.min(100, num(w.rainChance) ?? 0)),
+    icon: WEATHER_ICONS.includes(w.icon) ? w.icon : null,
+  }
+}
+
 // Normalize the consumed schema defensively; extra fields are ignored.
-function canonBrief(b) {
+export function canonBrief(b) {
   return {
     date: typeof b.date === 'string' ? b.date : '',
     generatedAt: b.generatedAt ?? null,
@@ -33,6 +51,7 @@ function canonBrief(b) {
     mails: (Array.isArray(b.mails) ? b.mails : []).map((m) => ({ from: m.from || '', subject: m.subject || '', why: m.why || '' })),
     alerts: (Array.isArray(b.alerts) ? b.alerts : []).filter((x) => typeof x === 'string'),
     life: b.life && typeof b.life === 'object' ? { note: b.life.note || '' } : null,
+    weather: canonWeather(b.weather),
   }
 }
 

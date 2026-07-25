@@ -131,7 +131,10 @@ union par id + tombstones. Garde : `version > 4` → « bloqué », jamais écra
   dépassée, prioritaire jamais contacté). Source indisponible → section masquée.
 - `daily-brief.json` (déposé par l'assistant, `app:"cockpit-brief"`) → section
   Brief. Absent ou daté d'un autre jour → « Pas de brief aujourd'hui ». L'app ne
-  l'écrit jamais.
+  l'écrit jamais. Champ optionnel `weather` :
+  `{ location, summary (requis), tempMin, tempMax, unit, rainChance, icon
+  ("sun"|"cloud"|"rain"|"storm"|"snow"|"fog"|"partly") }` — affiché discrètement
+  près du countdown ; absent → rien (aucune API météo appelée par l'app).
 
 ## Synchronisation (le cœur du travail)
 
