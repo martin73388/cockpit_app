@@ -1041,3 +1041,22 @@
     padding-left: 14px;
   }
 }
+
+/* ============ v8 — Rattrapage de la veille & piliers en retard ============ */
+
+/* « Hier » : un rappel, pas un reproche — même densité que les autres sections,
+   sans couleur d'alerte. */
+.dash-section.yesterday .today-line:last-of-type {
+  border-bottom: none;
+}
+
+/* Un pilier avec des occurrences passées non cochées : le seul cas qui appelle
+   une action, donc le seul qui se colore. */
+.pillar-card.late {
+  background: var(--warning-bg);
+  border-color: transparent;
+}
+.pillar-card.late .pillar-hint {
+  color: var(--warning);
+  font-weight: 600;
+}

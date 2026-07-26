@@ -335,7 +335,9 @@ describe('piliers : seules les occurrences planifiées comptent comme faites', (
       completions: ['2026-07-21'], // mardi : hors planning
     })
     const [card] = computePillarWeek([h], '2026-07-23')
-    expect(card).toEqual({ pillar: 'sport', planned: 1, done: 0, remaining: 1 }) // pas « À jour »
+    // v8 : `late` s'ajoute — l'occurrence du dimanche 26 est à venir le 23,
+    // donc rien n'est encore en retard.
+    expect(card).toEqual({ pillar: 'sport', planned: 1, done: 0, late: 0, remaining: 1 }) // pas « À jour »
   })
   it('planifié ∧ fait compte, les habitudes en pause sont ignorées', () => {
     const done = habit('h1', 1, {
@@ -345,6 +347,6 @@ describe('piliers : seules les occurrences planifiées comptent comme faites', (
     })
     const paused = habit('h2', 1, { pillar: 'sommeil', active: false })
     const [card] = computePillarWeek([done, paused], '2026-07-23')
-    expect(card).toEqual({ pillar: 'sommeil', planned: 1, done: 1, remaining: 0 })
+    expect(card).toEqual({ pillar: 'sommeil', planned: 1, done: 1, late: 0, remaining: 0 })
   })
 })

@@ -21,12 +21,23 @@ export function PillarsSection() {
       ) : (
         <div className="pillar-grid">
           {cards.map((c) => (
-            <div key={c.pillar} className={`pillar-card ${c.remaining === 0 ? 'ok' : ''}`}>
+            <div
+              key={c.pillar}
+              className={`pillar-card ${c.late > 0 ? 'late' : c.remaining === 0 ? 'ok' : ''}`}
+            >
               <span className="pillar-name">{PILLAR_LABEL[c.pillar]}</span>
               <span className="pillar-count">
                 {c.done}/{c.planned}
               </span>
-              <span className="pillar-hint">{c.remaining === 0 ? 'À jour' : `reste ${c.remaining}`}</span>
+              {/* Le retard prime : c'est le seul chiffre sur lequel agir.
+                  Sinon on annonce ce qui reste à venir, sans dramatiser. */}
+              <span className="pillar-hint">
+                {c.late > 0
+                  ? `${c.late} manqué${c.late > 1 ? 's' : ''}`
+                  : c.remaining === 0
+                    ? 'À jour'
+                    : `reste ${c.remaining}`}
+              </span>
             </div>
           ))}
         </div>
