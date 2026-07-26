@@ -6,7 +6,7 @@
 import { stamp } from './clock.js'
 
 export const APP = 'cockpit'
-export const SCHEMA_VERSION = 6
+export const SCHEMA_VERSION = 7
 
 export const PRIORITIES = ['haute', 'normale', 'basse']
 export const PRIORITY_LABEL = { haute: 'Haute', normale: 'Normale', basse: 'Basse' }
@@ -77,6 +77,7 @@ export function newTodo(patch = {}) {
     priority: 'normale',
     dueDate: '',
     projectId: null,
+    projectSource: null, // 'carnet' quand la tâche a été créée depuis Carnet (écrit par lui)
     order: t, // large monotone default -> new items append at the end of manual order
     subtasks: [],
     createdAt: t,

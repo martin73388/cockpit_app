@@ -14,7 +14,7 @@ function freshStore(todos = []) {
 describe('v6 : temps estimé', () => {
   it('version du fichier', () => {
     expect(canonicalize(state()).version).toBe(SCHEMA_VERSION)
-    expect(SCHEMA_VERSION).toBe(6)
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(6) // v6 introduit estimateMinutes
   })
 
   it('une tâche migrée depuis v5 arrive simplement « non estimée »', () => {

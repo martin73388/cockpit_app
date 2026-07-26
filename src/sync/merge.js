@@ -248,6 +248,10 @@ function canonTodo(t) {
     priority,
     dueDate: typeof t.dueDate === 'string' ? t.dueDate : '',
     projectId: t.projectId == null ? null : String(t.projectId),
+    // Écrit par Carnet quand il crée une tâche depuis une fiche projet. Cockpit
+    // ne s'en sert pas, mais ne doit pas l'effacer : supprimer en silence le
+    // champ d'une autre app dans un fichier partagé, c'est lui casser sa reprise.
+    projectSource: typeof t.projectSource === 'string' && t.projectSource ? t.projectSource : null,
     order: Number.isFinite(Number(t.order)) ? num(t.order) : num(t.createdAt),
     subtasks: asArray(t.subtasks).filter((s) => s && s.id != null).map(canonSubtask),
     createdAt: num(t.createdAt),
