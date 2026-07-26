@@ -222,6 +222,7 @@ function canonTodo(t) {
   // statut 'scheduled' orphelin de créneau retombe « à faire ».
   const scheduled = canonSlot(t.scheduled)
   if (status === 'scheduled' && !scheduled) status = 'todo'
+  const estimate = Math.round(Number(t.estimateMinutes))
   const f = t.focus
   const focus =
     f && typeof f === 'object' && typeof f.date === 'string' && DATE_RE.test(f.date)
@@ -236,6 +237,9 @@ function canonTodo(t) {
     status,
     waiting,
     scheduled,
+    // v6 — temps estimé. Arrondi AVANT le test de positivité (même piège
+    // d'idempotence que durationMinutes) ; 0 ou invalide = non estimé.
+    estimateMinutes: estimate > 0 ? estimate : null,
     calendarEventId: t.calendarEventId == null ? null : String(t.calendarEventId),
     // Défaut 'off' (et NON 'pending' comme les habitudes) : migrer un fichier v4
     // ne doit pas déclencher la création d'un événement pour chaque tâche.

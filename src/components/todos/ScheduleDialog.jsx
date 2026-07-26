@@ -12,7 +12,9 @@ export function ScheduleDialog({ todo, onClose }) {
   const s = todo.scheduled
   const [date, setDate] = useState(s?.date || today)
   const [time, setTime] = useState(s?.time || '')
-  const [durationMinutes, setDuration] = useState(s?.durationMinutes || 60)
+  // À défaut de créneau existant, on part du temps estimé de la tâche : le
+  // créneau réservé colle alors à ce qu'elle demande vraiment.
+  const [durationMinutes, setDuration] = useState(s?.durationMinutes || todo.estimateMinutes || 60)
 
   useEffect(() => {
     function onKey(e) {

@@ -999,3 +999,45 @@
 .modal-foot {
   flex-wrap: wrap;
 }
+
+/* ============ v6 — Temps estimé & sous-tâches dans le plan du jour ============ */
+
+.estimate-chip {
+  white-space: nowrap;
+}
+
+/* Les sous-tâches occupent une ligne entière sous leur tâche : .today-line est
+   flex, on force donc un retour à la ligne plutôt qu'une colonne écrasée. */
+.today-line {
+  flex-wrap: wrap;
+}
+.today-subtasks {
+  flex: 1 0 100%;
+  list-style: none;
+  margin: 4px 0 2px;
+  padding: 0 0 0 26px;
+  display: grid;
+  gap: 2px;
+}
+.today-subtasks li label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-muted);
+  min-width: 0;
+}
+.today-subtasks li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.today-subtasks li.done span {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+@media (max-width: 374px) {
+  .today-subtasks {
+    padding-left: 14px;
+  }
+}

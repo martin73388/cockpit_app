@@ -34,6 +34,16 @@ export function formatDueDate(iso, today = todayISO()) {
   return sameYear ? `${d} ${month}` : `${d} ${month} ${y}`
 }
 
+// Durée lisible : 45 -> "45 min", 60 -> "1 h", 90 -> "1 h 30".
+export function formatDuration(mins) {
+  const n = Number(mins)
+  if (!Number.isFinite(n) || n <= 0) return ''
+  if (n < 60) return `${n} min`
+  const h = Math.floor(n / 60)
+  const m = n % 60
+  return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`
+}
+
 // Libellé d'un créneau réservé : "Aujourd'hui 14:00", "Demain", "28 juil. 09:30".
 export function slotLabel(slot, today = todayISO()) {
   if (!slot || !slot.date) return ''

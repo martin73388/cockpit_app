@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { store } from '../../data/store.js'
 import { PRIORITY_LABEL } from '../../data/model.js'
-import { isOverdue, dueLabel, todayISO, daysSince, slotLabel } from '../../utils/dates.js'
+import { isOverdue, dueLabel, todayISO, daysSince, slotLabel, formatDuration } from '../../utils/dates.js'
 import { todoProgress } from '../../utils/todoView.js'
 import { SubtaskList } from './SubtaskList.jsx'
 import { ConfirmDelete } from '../common/ConfirmDelete.jsx'
@@ -110,6 +110,11 @@ export function TodoItem({ todo, projectsById, layout, sortable, drag, onOpenMod
           {focusedToday && todo.focus.count > 0 && (
             <span className={`chip rollover-chip ${todo.focus.count >= 4 ? 'overdue' : ''}`} title={todo.focus.count >= 4 ? 'Reportée 4 fois — tranche : attente, échéance ou retirer du focus' : 'Reportée depuis ' + todo.focus.count + ' jour(s)'}>
               ↻ ×{todo.focus.count}
+            </span>
+          )}
+          {todo.estimateMinutes > 0 && (
+            <span className="chip estimate-chip" title="Temps estimé pour la faire">
+              ⏱ {formatDuration(todo.estimateMinutes)}
             </span>
           )}
           {todo.status === 'scheduled' && todo.scheduled && (

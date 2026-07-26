@@ -1,8 +1,36 @@
 import { useState } from 'react'
 import { store } from '../../data/store.js'
 import { useStore } from '../../hooks/useStore.js'
-import { todayISO, isOverdue, dueLabel, daysSince, slotLabel } from '../../utils/dates.js'
+import { todayISO, isOverdue, dueLabel, daysSince, slotLabel, formatDuration } from '../../utils/dates.js'
 import { scheduledOn } from '../../utils/recurrence.js'
+
+// Temps estimé + sous-tâches cochables, directement dans le plan du jour :
+// on doit pouvoir avancer une tâche sans quitter le Dashboard.
+function Estimate({ todo }) {
+  if (!(todo.estimateMinutes > 0)) return null
+  return <span className="chip estimate-chip" title="Temps estimé">⏱ {formatDuration(todo.estimateMinutes)}</span>
+}
+
+function TodaySubtasks({ todo }) {
+  if (!todo.subtasks.length) return null
+  return (
+    <ul className="today-subtasks">
+      {todo.subtasks.map((st) => (
+        <li key={st.id} className={st.done ? 'done' : ''}>
+          <label>
+            <input
+              type="checkbox"
+              className="check check-sm"
+              checked={st.done}
+              onChange={() => store.toggleSubtask(todo.id, st.id)}
+            />
+            <span>{st.title}</span>
+          </label>
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 // Section 3 — today: scheduled slots that have come due, overdue todos (red)
 // then due-today, checkable in place; waiting todos whose follow-up date is due
@@ -65,7 +93,9 @@ export function TodaySection() {
               ↻ ×{t.focus.count}
             </span>
           )}
+          <Estimate todo={t} />
           {t.dueDate && <span className={`chip ${isOverdue(t, today) ? 'overdue' : ''}`}>{dueLabel(t.dueDate, today)}</span>}
+          <TodaySubtasks todo={t} />
         </div>
       ))}
 
@@ -82,6 +112,8 @@ export function TodaySection() {
           <span className={`chip ${t.scheduled.date < today ? 'overdue' : ''}`}>
             {slotLabel(t.scheduled, today)}
           </span>
+          <Estimate todo={t} />
+          <TodaySubtasks todo={t} />
         </div>
       ))}
 
@@ -109,6 +141,8 @@ export function TodaySection() {
           />
           <span className="today-title">{t.title}</span>
           <span className={`chip ${isOverdue(t, today) ? 'overdue' : ''}`}>{dueLabel(t.dueDate, today)}</span>
+          <Estimate todo={t} />
+          <TodaySubtasks todo={t} />
         </div>
       ))}
 

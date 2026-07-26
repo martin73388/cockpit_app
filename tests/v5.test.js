@@ -87,7 +87,7 @@ describe('v5 : modèle du créneau', () => {
 
   it('version du fichier = SCHEMA_VERSION', () => {
     expect(canonicalize(state()).version).toBe(SCHEMA_VERSION)
-    expect(SCHEMA_VERSION).toBe(5)
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(5) // v5 introduit le créneau
   })
 })
 

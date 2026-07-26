@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { store } from '../../data/store.js'
-import { PRIORITIES, PRIORITY_LABEL } from '../../data/model.js'
+import { PRIORITIES, PRIORITY_LABEL, ESTIMATES } from '../../data/model.js'
+import { formatDuration } from '../../utils/dates.js'
 import { ProjectSelect } from './ProjectSelect.jsx'
 import { SubtaskList } from './SubtaskList.jsx'
 import { IconX } from '../common/Icons.jsx'
@@ -70,6 +71,30 @@ export function TodoEditModal({ todo, projects, onClose }) {
                 onChange={(e) => store.updateTodo(todo.id, { dueDate: e.target.value })}
               />
             </div>
+          </div>
+          <div>
+            <label className="label" htmlFor="edit-estimate">Temps estimé</label>
+            <select
+              id="edit-estimate"
+              className="select"
+              value={todo.estimateMinutes ?? ''}
+              onChange={(e) =>
+                store.updateTodo(todo.id, { estimateMinutes: e.target.value === '' ? null : Number(e.target.value) })
+              }
+            >
+              <option value="">— non estimé</option>
+              {/* Une valeur hors presets (fichier édité à la main) reste
+                  affichable : le <select> ne doit jamais mentir sur l'état. */}
+              {(todo.estimateMinutes && !ESTIMATES.includes(todo.estimateMinutes)
+                ? [...ESTIMATES, todo.estimateMinutes].sort((a, b) => a - b)
+                : ESTIMATES
+              ).map((m) => (
+                <option key={m} value={m}>{formatDuration(m)}</option>
+              ))}
+            </select>
+            <p className="faint" style={{ fontSize: 12, margin: '4px 0 0' }}>
+              Affiché sur la carte, et sert à repérer ce qui tient dans un créneau libre.
+            </p>
           </div>
           <div>
             <label className="label" htmlFor="edit-project">Projet</label>

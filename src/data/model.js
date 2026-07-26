@@ -6,7 +6,7 @@
 import { stamp } from './clock.js'
 
 export const APP = 'cockpit'
-export const SCHEMA_VERSION = 5
+export const SCHEMA_VERSION = 6
 
 export const PRIORITIES = ['haute', 'normale', 'basse']
 export const PRIORITY_LABEL = { haute: 'Haute', normale: 'Normale', basse: 'Basse' }
@@ -27,6 +27,10 @@ export const TODO_STATUSES = ['todo', 'scheduled', 'waiting', 'done']
 
 // Durées proposées pour un créneau de tâche (minutes).
 export const SLOT_DURATIONS = [15, 30, 45, 60, 90, 120]
+
+// Temps estimé pour faire une tâche (minutes). Sert à choisir quoi faire d'un
+// créneau libre — et à dimensionner le créneau quand on planifie.
+export const ESTIMATES = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240]
 
 export const SORTS = ['manual', 'due', 'priority', 'created']
 export const SORT_LABEL = { manual: 'Manuel', due: 'Échéance', priority: 'Priorité', created: 'Création' }
@@ -66,6 +70,7 @@ export function newTodo(patch = {}) {
     waiting: null, // { note, since(epoch ms), followUpDate("YYYY-MM-DD"|"") } quand status==='waiting'
     // v5 — créneau réservé : la tâche sort de « À faire » et part dans l'agenda.
     scheduled: null, // { date("YYYY-MM-DD"), time("HH:MM"|""), durationMinutes }
+    estimateMinutes: null, // v6 — temps estimé pour la faire (null = non estimé)
     calendarEventId: null, // écrit par le robot Apps Script (handshake, cf. habitudes)
     calendarSync: 'off', // 'off' | 'pending' | 'synced' — l'app demande, le robot exécute
     focus: null, // { date("YYYY-MM-DD"), count } — épinglée au plan du jour ; count = reports
