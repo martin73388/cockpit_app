@@ -3,11 +3,13 @@ import { store } from '../../data/store.js'
 import { useStore } from '../../hooks/useStore.js'
 import { STATUS_FILTERS, STATUS_LABEL, SORTS, SORT_LABEL, PRIORITIES, PRIORITY_LABEL, LAYOUTS } from '../../data/model.js'
 import { visibleTodos } from '../../utils/todoView.js'
+import { todayISO } from '../../utils/dates.js'
 import { reorderList } from '../../utils/reorder.js'
 import { TodoItem } from './TodoItem.jsx'
 import { TodoEditModal } from './TodoEditModal.jsx'
 import { WaitingDialog } from './WaitingDialog.jsx'
 import { FollowUpDialog } from './FollowUpDialog.jsx'
+import { ScheduleDialog } from './ScheduleDialog.jsx'
 import { IconPlus, IconSearch } from '../common/Icons.jsx'
 
 const ALL_PRIORITIES = ['haute', 'normale', 'basse']
@@ -19,6 +21,7 @@ export function TodosView({ projects, ui, onUi }) {
   const [editId, setEditId] = useState(null)
   const [waitingId, setWaitingId] = useState(null)
   const [followUpId, setFollowUpId] = useState(null)
+  const [scheduleId, setScheduleId] = useState(null)
   const [justDone, setJustDone] = useState(null) // { id, title } -> toast « En attente d'une suite ? »
   const [dragId, setDragId] = useState(null)
   const [overId, setOverId] = useState(null)
@@ -31,17 +34,23 @@ export function TodosView({ projects, ui, onUi }) {
 
   const priorities = ui.priorities || ALL_PRIORITIES
   const filters = { query, status: ui.status, priorities, sort: ui.sort }
+  // `today` est passé explicitement (et mis en dépendance) : « À faire »
+  // récupère les créneaux échus, donc au premier rendu suivant minuit la liste
+  // doit se recalculer même si aucune tâche n'a bougé.
+  const today = todayISO()
   const shown = useMemo(
-    () => visibleTodos(todos, filters, projectLabelOf),
-    [todos, query, ui.status, priorities, ui.sort, projectsById],
+    () => visibleTodos(todos, filters, projectLabelOf, today),
+    [todos, query, ui.status, priorities, ui.sort, projectsById, today],
   )
 
   const waitingCount = todos.filter((t) => t.status === 'waiting').length
+  const scheduledCount = todos.filter((t) => t.status === 'scheduled').length
   const allPrios = priorities.length === 3
   const sortable = ui.sort === 'manual' && !query.trim() && ui.status === 'all' && allPrios
   const editTodo = editId ? todos.find((t) => t.id === editId) : null
   const waitingTodo = waitingId ? todos.find((t) => t.id === waitingId) : null
   const followUpTodo = followUpId ? todos.find((t) => t.id === followUpId) : null
+  const schedulingTodo = scheduleId ? todos.find((t) => t.id === scheduleId) : null
 
   function addTodo() {
     const id = store.addTodo(draft)
@@ -149,6 +158,7 @@ export function TodosView({ projects, ui, onUi }) {
             <button key={s} aria-pressed={ui.status === s} onClick={() => onUi({ status: s })}>
               {STATUS_LABEL[s]}
               {s === 'waiting' && waitingCount > 0 ? ` (${waitingCount})` : ''}
+              {s === 'scheduled' && scheduledCount > 0 ? ` (${scheduledCount})` : ''}
             </button>
           ))}
         </div>
@@ -191,6 +201,7 @@ export function TodosView({ projects, ui, onUi }) {
               onOpenModal={setEditId}
               onToggleDone={() => handleToggleDone(t)}
               onWait={() => setWaitingId(t.id)}
+              onSchedule={() => setScheduleId(t.id)}
             />
           ))}
         </div>
@@ -205,6 +216,7 @@ export function TodosView({ projects, ui, onUi }) {
       {editTodo && <TodoEditModal todo={editTodo} projects={projects} onClose={() => setEditId(null)} />}
       {waitingTodo && <WaitingDialog todo={waitingTodo} onClose={() => setWaitingId(null)} />}
       {followUpTodo && <FollowUpDialog sourceTodo={followUpTodo} onClose={() => setFollowUpId(null)} />}
+      {schedulingTodo && <ScheduleDialog todo={schedulingTodo} onClose={() => setScheduleId(null)} />}
 
       {justDone && (
         <div className="toast done-toast" role="status">

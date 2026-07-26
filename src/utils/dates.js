@@ -34,6 +34,13 @@ export function formatDueDate(iso, today = todayISO()) {
   return sameYear ? `${d} ${month}` : `${d} ${month} ${y}`
 }
 
+// Libellé d'un créneau réservé : "Aujourd'hui 14:00", "Demain", "28 juil. 09:30".
+export function slotLabel(slot, today = todayISO()) {
+  if (!slot || !slot.date) return ''
+  const day = dueLabel(slot.date, today)
+  return slot.time ? `${day} ${slot.time}` : day
+}
+
 // Relative-ish label for due dates, used on rows/cards.
 export function dueLabel(iso, today = todayISO()) {
   if (!iso) return ''

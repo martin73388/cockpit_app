@@ -60,6 +60,7 @@ const STALLED_DAYS = 7
 export function stalledTodos(todos, now = Date.now()) {
   const out = []
   for (const t of todos || []) {
+    // Une tâche planifiée a justement une prochaine étape : un créneau.
     if (t.status !== 'todo') continue
     if (t.dueDate) continue
     if (t.subtasks.some((st) => !st.done)) continue
@@ -70,12 +71,25 @@ export function stalledTodos(todos, now = Date.now()) {
   return out
 }
 
+// Créneaux manqués : la tâche était planifiée avant aujourd'hui et n'a jamais
+// été validée. Le filet anti-oubli du mode « planifié » — sans lui, réserver un
+// créneau reviendrait à faire disparaître la tâche pour de bon.
+export function missedSlots(todos, today = todayISO()) {
+  const out = []
+  for (const t of todos || []) {
+    if (t.status !== 'scheduled' || !t.scheduled || !t.scheduled.date) continue
+    if (t.scheduled.date >= today) continue
+    out.push({ kind: 'creneau', label: `${t.title} — créneau du ${t.scheduled.date} passé, non validé` })
+  }
+  return out
+}
+
 // -> [{ source, url|null, items|null }] ; items===null means the source is
 // unavailable this cycle (render a discreet note, never an error).
 export function computeAlerts(sources, today = todayISO(), now = Date.now(), todos = []) {
   return [
     { source: 'Radar', url: RADAR_URL, items: radarAlerts(sources && sources.radar, today) },
     { source: 'Carnet', url: CARNET_URL, items: carnetAlerts(sources && sources.carnet, today, now) },
-    { source: 'Cockpit', url: null, items: stalledTodos(todos, now) },
+    { source: 'Cockpit', url: null, items: [...missedSlots(todos, today), ...stalledTodos(todos, now)] },
   ]
 }

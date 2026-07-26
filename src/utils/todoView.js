@@ -1,6 +1,6 @@
 // Todo list view-model: search, filters, sort. Pure functions (easy to test).
 import { PRIORITY_WEIGHT } from '../data/model.js'
-import { isOverdue } from './dates.js'
+import { isOverdue, todayISO } from './dates.js'
 
 export function todoProgress(todo) {
   const total = todo.subtasks.length
@@ -25,11 +25,20 @@ function statusOf(todo) {
   return todo.status || (todo.done ? 'done' : 'todo')
 }
 
+// Une tâche planifiée dont le créneau est arrivé (ou passé sans être faite)
+// redevient actionnable : elle réapparaît dans « À faire ».
+export function isSlotDue(todo, today) {
+  return statusOf(todo) === 'scheduled' && !!todo.scheduled && todo.scheduled.date <= today
+}
+
 function matchesStatus(todo, status, today) {
   switch (status) {
     case 'todo':
-      // « À faire » exclut les tâches en attente (elles ont leur propre puce).
-      return statusOf(todo) === 'todo'
+      // « À faire » exclut attente et créneaux à venir (chacun a sa puce) —
+      // mais récupère les planifiées dont l'heure est venue.
+      return statusOf(todo) === 'todo' || isSlotDue(todo, today)
+    case 'scheduled':
+      return statusOf(todo) === 'scheduled'
     case 'waiting':
       return statusOf(todo) === 'waiting'
     case 'done':
@@ -57,7 +66,7 @@ const COMPARATORS = {
 
 // filters: { query, status, priority, sort }
 // projectLabelOf: (projectId) => string | undefined
-export function visibleTodos(todos, filters, projectLabelOf = () => '', today = undefined) {
+export function visibleTodos(todos, filters, projectLabelOf = () => '', today = todayISO()) {
   const q = (filters.query || '').trim().toLowerCase()
   const cmp = COMPARATORS[filters.sort] || COMPARATORS.manual
   const prios = Array.isArray(filters.priorities) ? filters.priorities : null

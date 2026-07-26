@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { store } from '../../data/store.js'
 import { PRIORITY_LABEL } from '../../data/model.js'
-import { isOverdue, dueLabel, todayISO, daysSince } from '../../utils/dates.js'
+import { isOverdue, dueLabel, todayISO, daysSince, slotLabel } from '../../utils/dates.js'
 import { todoProgress } from '../../utils/todoView.js'
 import { SubtaskList } from './SubtaskList.jsx'
 import { ConfirmDelete } from '../common/ConfirmDelete.jsx'
 import { IconCopy, IconEdit, IconGrip, IconCalendar } from '../common/Icons.jsx'
 
-export function TodoItem({ todo, projectsById, layout, sortable, drag, onOpenModal, onToggleDone, onWait }) {
+export function TodoItem({ todo, projectsById, layout, sortable, drag, onOpenModal, onToggleDone, onWait, onSchedule }) {
   const today = todayISO()
   const [editing, setEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState(todo.title)
@@ -112,6 +112,21 @@ export function TodoItem({ todo, projectsById, layout, sortable, drag, onOpenMod
               ↻ ×{todo.focus.count}
             </span>
           )}
+          {todo.status === 'scheduled' && todo.scheduled && (
+            <span
+              className={`chip scheduled-chip ${todo.scheduled.date < today ? 'overdue' : ''}`}
+              title={
+                todo.calendarSync === 'pending'
+                  ? "Créneau réservé — l'événement d'agenda est en cours de création"
+                  : todo.scheduled.date < today
+                    ? 'Créneau passé sans validation'
+                    : 'Créneau réservé dans l’agenda'
+              }
+            >
+              📅 {slotLabel(todo.scheduled, today)}
+              {todo.calendarSync === 'pending' && <span className="faint"> ⏳</span>}
+            </span>
+          )}
           {todo.status === 'waiting' && todo.waiting && (
             <span
               className={`chip waiting-chip ${
@@ -152,7 +167,9 @@ export function TodoItem({ todo, projectsById, layout, sortable, drag, onOpenMod
       </div>
 
       <div className="todo-actions">
-        {todo.status !== 'done' && (
+        {/* Pas d'étoile sur une tâche planifiée : son créneau EST son plan —
+            l'épingler au jour n'aurait aucun effet visible. */}
+        {todo.status !== 'done' && todo.status !== 'scheduled' && (
           <button
             className={`btn btn-ghost btn-icon focus-star ${focusedToday ? 'on' : ''}`}
             onClick={() => store.toggleFocus(todo.id, today)}
@@ -161,6 +178,17 @@ export function TodoItem({ todo, projectsById, layout, sortable, drag, onOpenMod
             aria-pressed={!!focusedToday}
           >
             <span aria-hidden="true">{focusedToday ? '⭐' : '☆'}</span>
+          </button>
+        )}
+        {!todo.done && onSchedule && (
+          <button
+            className={`btn btn-ghost btn-icon schedule-btn ${todo.status === 'scheduled' ? 'on' : ''}`}
+            onClick={onSchedule}
+            title={todo.status === 'scheduled' ? 'Modifier le créneau' : 'Planifier un créneau'}
+            aria-label={`${todo.status === 'scheduled' ? 'Modifier le créneau' : 'Planifier'} : ${todo.title}`}
+            aria-pressed={todo.status === 'scheduled'}
+          >
+            <span aria-hidden="true">📅</span>
           </button>
         )}
         {todo.status === 'waiting' ? (

@@ -942,3 +942,60 @@
 .brief-weather .weather-loc {
   font-weight: 600;
 }
+
+/* ============ v5 — Tâches planifiées (créneau + agenda) ============ */
+
+/* Un créneau réservé est un engagement tenu, pas une alerte : ton primaire. */
+.scheduled-chip {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: transparent;
+  white-space: nowrap;
+}
+.scheduled-chip.overdue {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.schedule-btn.on {
+  color: var(--primary);
+}
+
+/* Raccourcis de date du dialogue « Planifier » */
+.slot-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.slot-presets .chip {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+}
+.slot-presets .chip[aria-pressed='true'] {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--primary-border);
+  font-weight: 600;
+}
+
+/* Très petits écrans : une puce d'heure ne doit jamais écraser le titre en
+   colonne d'une lettre. En dessous de ~8em de titre, la puce passe à la ligne
+   (la ligne est déjà flex-wrap: wrap plus haut). */
+@media (max-width: 374px) {
+  .today-line .today-title {
+    min-width: 8em;
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Correctif de fond (design system) : .modal est un élément de grille, donc son
+   min-width:auto l'empêche de descendre sous la largeur min-content de son
+   contenu. Un pied à trois boutons rendait ainsi la modale PLUS LARGE que
+   l'écran d'un Jelly Star, poussant le bouton principal hors champ. */
+.modal {
+  min-width: 0;
+}
+.modal-foot {
+  flex-wrap: wrap;
+}

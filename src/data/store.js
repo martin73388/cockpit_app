@@ -6,6 +6,7 @@
 //   engine can debounce a push. `replaceState` (used by the sync engine after a
 //   merge) updates the UI WITHOUT scheduling another push — avoids feedback loops.
 import { stamp, observe } from './clock.js'
+import { todayISO } from '../utils/dates.js'
 import { emptyState, newTodo, newSubtask, newHabit, newInboxItem, tombstone } from './model.js'
 import { canonicalize, stableStringify } from '../sync/merge.js'
 import { KEYS, load, save } from './persist.js'
@@ -86,17 +87,70 @@ export function createStore(initial) {
           const done = x.status !== 'done'
           // Parent -> children: (un)completing the todo (un)checks every subtask.
           const subtasks = x.subtasks.map((st) => ({ ...st, done }))
+          // Rouvrir une tâche qui gardait un créneau ENCORE VALABLE la remet
+          // « planifiée » ; un créneau périmé est simplement abandonné.
+          const reopened = done ? null : reopenSlot(x)
           return {
             ...x,
             done,
-            status: done ? 'done' : 'todo',
+            status: done ? 'done' : reopened.status,
+            scheduled: done ? x.scheduled : reopened.scheduled,
             waiting: null, // terminer ou reprendre clôt l'attente en cours
             focus: done ? null : x.focus, // terminée -> sort du plan du jour
             doneAt: done ? stamp() : null,
+            // Le robot tranche : créneau à venir -> événement retiré ; créneau
+            // déjà passé -> conservé comme trace de ce qui a été fait.
+            calendarSync: needsCalendarSync(x) ? 'pending' : x.calendarSync,
             subtasks,
             updatedAt: stamp(),
           }
         }),
+      }))
+    },
+    // Réserve un créneau : la tâche sort de « À faire » et part dans l'agenda
+    // (l'app ne fait que demander — c'est le robot Apps Script qui écrit).
+    scheduleTodo(id, { date, time = '', durationMinutes = 60 } = {}) {
+      if (!date) return
+      mutate((s) => ({
+        ...s,
+        todos: s.todos.map((x) => {
+          if (x.id !== id) return x
+          const slot = { date, time, durationMinutes }
+          // Reconfirmer le même créneau doit aussi pouvoir RÉPARER : si aucun
+          // événement n'est rattaché, on relance le robot même sans changement.
+          const changed =
+            stableStringify(slot) !== stableStringify(x.scheduled) ||
+            x.status !== 'scheduled' ||
+            (!x.calendarEventId && x.calendarSync !== 'pending')
+          return {
+            ...x,
+            done: false,
+            doneAt: null,
+            status: 'scheduled',
+            scheduled: slot,
+            waiting: null, // un créneau réservé clôt l'attente
+            focus: null, // le créneau remplace l'épingle du jour
+            calendarSync: changed ? 'pending' : x.calendarSync,
+            updatedAt: stamp(),
+          }
+        }),
+      }))
+    },
+    // Retire le créneau : retour dans « À faire », événement supprimé par le robot.
+    unscheduleTodo(id) {
+      mutate((s) => ({
+        ...s,
+        todos: s.todos.map((x) =>
+          x.id === id && (x.scheduled || x.status === 'scheduled')
+            ? {
+                ...x,
+                status: x.status === 'done' ? 'done' : 'todo',
+                scheduled: null,
+                calendarSync: needsCalendarSync(x) ? 'pending' : x.calendarSync,
+                updatedAt: stamp(),
+              }
+            : x,
+        ),
       }))
     },
     // Passe une tâche « En attente » (d'une réponse, d'un événement…).
@@ -112,6 +166,12 @@ export function createStore(initial) {
                 doneAt: null,
                 status: 'waiting',
                 waiting: { note, since: stamp(), followUpDate },
+                // Attendre quelqu'un annule le créneau : sinon l'événement
+                // resterait orphelin dans l'agenda pour une tâche qu'on ne
+                // peut plus faire à l'heure dite.
+                scheduled: null,
+                calendarSync: needsCalendarSync(x) ? 'pending' : x.calendarSync,
+                focus: null,
                 updatedAt: stamp(),
               }
             : x,
@@ -135,7 +195,9 @@ export function createStore(initial) {
       mutate((s) => {
         let changed = false
         const todos = s.todos.map((x) => {
-          if (x.status === 'done' || !x.focus || x.focus.date >= today) return x
+          // Seules les tâches réellement « à faire » roulent : une tâche en
+          // attente ou déjà planifiée n'a rien à faire dans le plan du jour.
+          if (x.status !== 'todo' || !x.focus || x.focus.date >= today) return x
           changed = true
           return { ...x, focus: { date: today, count: x.focus.count + 1 }, updatedAt: stamp() }
         })
@@ -393,8 +455,35 @@ export function createStore(initial) {
 function reconcileParent(todo) {
   if (!todo.subtasks.length) return todo
   const allDone = todo.subtasks.every((st) => st.done)
-  if (!allDone && todo.done) return { ...todo, done: false, status: 'todo', doneAt: null }
+  if (!allDone && todo.done) {
+    return {
+      ...todo,
+      done: false,
+      ...reopenSlot(todo),
+      doneAt: null,
+      // Rouvrir par une sous-tâche doit rouvrir le handshake comme le ferait
+      // toggleTodoDone : sinon l'événement supprimé à la complétion ne serait
+      // jamais recréé et le créneau existerait sans rien dans l'agenda.
+      calendarSync: needsCalendarSync(todo) ? 'pending' : todo.calendarSync,
+    }
+  }
   return todo
+}
+
+// Ne réveiller le handshake agenda que s'il y a réellement un événement à créer
+// ou à supprimer — sinon chaque complétion de tâche ordinaire réveillerait le
+// robot pour rien (et ferait tourner la synchro à vide).
+function needsCalendarSync(todo) {
+  return !!(todo.scheduled || todo.calendarEventId)
+}
+
+// Rouvrir une tâche terminée : on ne restaure son créneau que s'il a encore un
+// sens. Un créneau passé ressusciterait un événement antidaté dans l'agenda et
+// une alerte « créneau manqué » que rien ne viendrait jamais éteindre.
+function reopenSlot(todo, today = todayISO()) {
+  return todo.scheduled && todo.scheduled.date >= today
+    ? { status: 'scheduled', scheduled: todo.scheduled }
+    : { status: 'todo', scheduled: null }
 }
 
 export const store = createStore()

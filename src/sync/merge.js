@@ -12,9 +12,9 @@
 //   - Canonical stable ordering so two identical devices emit identical bytes.
 //   - Never treat a remote that is not a Cockpit file as mergeable.
 //
-// Loading a version-1 file through canonicalize() IS the v1→v2 migration:
-// defaults are added (completions/pillar/anchorDate/inbox) and version is
-// rewritten to 2. Idempotent by construction.
+// Loading an older file through canonicalize() IS the migration: defaults are
+// added (v2 completions/pillar/anchorDate/inbox, v3 status/waiting, v4 focus,
+// v5 scheduled/calendar*) and version is rewritten. Idempotent by construction.
 //
 // mergeStates is commutative and idempotent:
 //   mergeStates(a, b) deep-equals mergeStates(b, a)
@@ -65,6 +65,7 @@ function pickNewer(x, y) {
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 
 // ---- Per-date completion CRDT.
 // `checks` maps "YYYY-MM-DD" -> { on, at }: the last check/un-check of that date
@@ -187,11 +188,25 @@ function canonSubtask(s) {
   return { id: s.id, title: typeof s.title === 'string' ? s.title : '', done: !!s.done }
 }
 
+// v5 — créneau réservé. Validé strictement : il pilote la création d'un
+// événement d'agenda côté robot, une date/heure douteuse ne doit jamais sortir.
+function canonSlot(s) {
+  if (!s || typeof s !== 'object' || typeof s.date !== 'string' || !DATE_RE.test(s.date)) return null
+  // Arrondir AVANT de tester la positivité : sinon 0.3 donne 0 au premier
+  // passage puis 60 au second, et canonicalize cesse d'être idempotent.
+  const mins = Math.round(Number(s.durationMinutes))
+  return {
+    date: s.date,
+    time: typeof s.time === 'string' && TIME_RE.test(s.time) ? s.time : '',
+    durationMinutes: Number.isFinite(mins) && mins > 0 ? mins : 60,
+  }
+}
+
 function canonTodo(t) {
   const priority = PRIORITIES.includes(t.priority) ? t.priority : 'normale'
-  // v3 : status ('todo'|'waiting'|'done'). Migration v2 : dérivé de done.
-  // `done` reste émis et synchronisé (status==='done') pour tout lecteur externe.
-  let status = ['todo', 'waiting', 'done'].includes(t.status) ? t.status : (t.done ? 'done' : 'todo')
+  // v3 : status ('todo'|'waiting'|'done'), v5 ajoute 'scheduled'. Migration v2 :
+  // dérivé de done. `done` reste émis et synchronisé pour tout lecteur externe.
+  let status = ['todo', 'waiting', 'scheduled', 'done'].includes(t.status) ? t.status : (t.done ? 'done' : 'todo')
   if (t.done && status !== 'done') status = 'done' // done coché prime (cohérence)
   const w = t.waiting
   const waiting =
@@ -203,6 +218,10 @@ function canonTodo(t) {
         }
       : null
   if (status === 'waiting' && !waiting) status = 'todo' // waiting sans détail -> retombe à faire
+  // Le créneau survit à la complétion (trace de « quand je l'ai fait ») ; seul un
+  // statut 'scheduled' orphelin de créneau retombe « à faire ».
+  const scheduled = canonSlot(t.scheduled)
+  if (status === 'scheduled' && !scheduled) status = 'todo'
   const f = t.focus
   const focus =
     f && typeof f === 'object' && typeof f.date === 'string' && DATE_RE.test(f.date)
@@ -216,6 +235,11 @@ function canonTodo(t) {
     doneAt: typeof t.doneAt === 'number' ? t.doneAt : null,
     status,
     waiting,
+    scheduled,
+    calendarEventId: t.calendarEventId == null ? null : String(t.calendarEventId),
+    // Défaut 'off' (et NON 'pending' comme les habitudes) : migrer un fichier v4
+    // ne doit pas déclencher la création d'un événement pour chaque tâche.
+    calendarSync: ['pending', 'synced', 'off'].includes(t.calendarSync) ? t.calendarSync : 'off',
     focus,
     priority,
     dueDate: typeof t.dueDate === 'string' ? t.dueDate : '',

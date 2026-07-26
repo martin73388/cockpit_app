@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { store } from '../../data/store.js'
 import { useStore } from '../../hooks/useStore.js'
-import { todayISO, isOverdue, dueLabel, daysSince } from '../../utils/dates.js'
+import { todayISO, isOverdue, dueLabel, daysSince, slotLabel } from '../../utils/dates.js'
 import { scheduledOn } from '../../utils/recurrence.js'
 
-// Section 3 — today: overdue todos (red) then due-today, checkable in place;
-// waiting todos whose follow-up date is due surface as « à relancer » ; habits
-// planned today with a completion check. A collapsible « En attente (n) » block
-// keeps every waiting subject visible (age + ⚠ guard after 7 days without a
-// follow-up date) — the anti-oubli net.
+// Section 3 — today: scheduled slots that have come due, overdue todos (red)
+// then due-today, checkable in place; waiting todos whose follow-up date is due
+// surface as « à relancer » ; habits planned today with a completion check.
+// A collapsible « En attente (n) » block keeps every waiting subject visible
+// (age + ⚠ guard after 7 days without a follow-up date) — the anti-oubli net.
 export function TodaySection() {
   const todos = useStore((s) => s.todos)
   const habits = useStore((s) => s.habits)
@@ -17,8 +17,19 @@ export function TodaySection() {
 
   const focusToday = todos.filter((t) => t.status === 'todo' && t.focus && t.focus.date === today)
   const focusIds = new Set(focusToday.map((t) => t.id))
+  // Créneaux arrivés à échéance : le jour J (ou un créneau manqué), la tâche
+  // planifiée revient d'elle-même sous les yeux, triée par heure.
+  const slotDue = todos
+    .filter((t) => t.status === 'scheduled' && t.scheduled && t.scheduled.date <= today)
+    .sort(
+      (a, b) =>
+        (a.scheduled.date < b.scheduled.date ? -1 : a.scheduled.date > b.scheduled.date ? 1 : 0) ||
+        (a.scheduled.time || '99:99').localeCompare(b.scheduled.time || '99:99'),
+    )
+  // Une tâche planifiée est exclue des « en retard » : son plan, c'est son
+  // créneau — elle remontera le jour dit, même si son échéance est dépassée.
   const overdue = todos
-    .filter((t) => t.status !== 'waiting' && !focusIds.has(t.id) && isOverdue(t, today))
+    .filter((t) => t.status !== 'waiting' && t.status !== 'scheduled' && !focusIds.has(t.id) && isOverdue(t, today))
     .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1))
   const dueToday = todos.filter((t) => t.status === 'todo' && !focusIds.has(t.id) && t.dueDate === today)
   const waiting = todos.filter((t) => t.status === 'waiting')
@@ -26,7 +37,12 @@ export function TodaySection() {
   const plannedHabits = habits.filter((h) => h.active && scheduledOn(h, today))
 
   const empty =
-    focusToday.length === 0 && overdue.length === 0 && dueToday.length === 0 && followUps.length === 0 && plannedHabits.length === 0
+    focusToday.length === 0 &&
+    slotDue.length === 0 &&
+    overdue.length === 0 &&
+    dueToday.length === 0 &&
+    followUps.length === 0 &&
+    plannedHabits.length === 0
 
   return (
     <section className="card dash-section" aria-label="Aujourd'hui">
@@ -50,6 +66,22 @@ export function TodaySection() {
             </span>
           )}
           {t.dueDate && <span className={`chip ${isOverdue(t, today) ? 'overdue' : ''}`}>{dueLabel(t.dueDate, today)}</span>}
+        </div>
+      ))}
+
+      {slotDue.map((t) => (
+        <div key={t.id} className={`today-line ${t.scheduled.date < today ? 'overdue' : ''}`}>
+          <input
+            type="checkbox"
+            className="check check-sm"
+            checked={false}
+            onChange={() => store.toggleTodoDone(t.id)}
+            aria-label={`Terminer ${t.title}`}
+          />
+          <span className="today-title">📅 {t.title}</span>
+          <span className={`chip ${t.scheduled.date < today ? 'overdue' : ''}`}>
+            {slotLabel(t.scheduled, today)}
+          </span>
         </div>
       ))}
 
