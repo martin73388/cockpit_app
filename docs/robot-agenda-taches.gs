@@ -53,6 +53,14 @@ function todoSlotStart_(slot) {
   return d;
 }
 
+// updatedAt : le strict minimum pour battre la version qu'on vient de lire, et
+// rien de plus. Un tampon global (le max de tout le fichier) placerait le robot
+// loin dans le futur et écraserait les modifications faites par l'utilisateur
+// entre notre lecture et notre écriture.
+function todoStamp_(t) {
+  return Math.max(Date.now(), (t.updatedAt || 0) + 1);
+}
+
 function todoDeleteEvent_(eventId) {
   if (!eventId) return;
   try {
@@ -99,17 +107,22 @@ function syncTodos() {
     var i, changed = false;
     var now = new Date();
 
-    // updatedAt : le strict minimum pour battre la version qu'on vient de lire,
-    // et rien de plus. Un tampon global (max de tout le fichier) placerait le
-    // robot loin dans le futur et écraserait des modifications faites par
-    // l'utilisateur entre notre lecture et notre écriture.
-    function todoStamp_(t) {
-      return Math.max(Date.now(), (t.updatedAt || 0) + 1);
-    }
-
     // 1) Tâches en attente de synchro agenda
     for (i = 0; i < data.todos.length; i++) {
       var t = data.todos[i];
+
+      // Réparation : seul le robot écrit calendarEventId, mais la fusion est un
+      // LWW objet entier — une copie périmée qui gagne fait reculer ce champ
+      // vers un événement déjà supprimé, pendant que le vrai reste orphelin.
+      // Notre registre est la mémoire du robot : il fait foi.
+      // ('synced' uniquement : 'off' signifie « aucun événement », y restaurer
+      // un id périmé ressusciterait un lien mort.)
+      if (t.calendarSync === 'synced' && reg[t.id] && reg[t.id] !== t.calendarEventId) {
+        t.calendarEventId = reg[t.id];
+        t.updatedAt = todoStamp_(t);
+        changed = true;
+      }
+
       if (t.calendarSync !== 'pending') continue;
       var slot = t.scheduled;
 
@@ -165,8 +178,24 @@ function syncTodos() {
       }
     }
 
-    props_().setProperty(TODO_REGISTRY, JSON.stringify(reg));
+    // 3) Élagage du registre. Une propriété de script est plafonnée à 9 ko :
+    // sans ménage, les entrées s'accumulent (tâches supprimées dont la pierre
+    // tombale a fini par disparaître) jusqu'à faire échouer setProperty — et
+    // avec lui TOUTE la synchro. On ne garde que les tâches encore vivantes
+    // et réellement rattachées à un événement.
+    var live = {};
+    for (i = 0; i < data.todos.length; i++) {
+      var lt = data.todos[i];
+      if (reg[lt.id] && lt.calendarEventId) live[lt.id] = reg[lt.id];
+    }
+    reg = live;
+
+    // Le fichier de données AVANT le registre : si l'écriture du registre
+    // échoue, le travail d'agenda déjà fait n'est pas perdu (et le prochain
+    // passage se resynchronise), alors que l'inverse laisserait le fichier
+    // en « pending » avec des événements déjà créés.
     if (changed) writeTarget_(TODO_FILE, JSON.stringify(data, null, 2));
+    props_().setProperty(TODO_REGISTRY, JSON.stringify(reg));
   } finally {
     lock.releaseLock();
   }
