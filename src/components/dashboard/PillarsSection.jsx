@@ -3,20 +3,20 @@ import { PILLAR_LABEL } from '../../data/model.js'
 import { todayISO } from '../../utils/dates.js'
 import { computePillarWeek } from '../../utils/pillars.js'
 
-// Section 4 — life vigilance: current week (Mon→Sun), one card per pillar
-// present on at least one habit: planned occurrences this week vs done,
-// remaining count, "À jour" when nothing left.
+// Équilibre de la semaine (lun→dim) : une carte par pilier porté par au moins
+// un créneau actif — occurrences prévues vs tenues, et surtout ce qui a été
+// réellement manqué (jours déjà passés).
 export function PillarsSection() {
   const habits = useStore((s) => s.habits)
   const cards = computePillarWeek(habits, todayISO())
 
   return (
-    <section className="card dash-section" aria-label="Vigilance vie">
-      <h2>Vigilance vie</h2>
+    <section className="card dash-section" aria-label="Équilibre">
+      <h2>Équilibre</h2>
       {cards.length === 0 ? (
         <p className="muted">
-          Assigne un <strong>pilier</strong> à tes habitudes (Sommeil, Sport, Couple, Proches, Repas)
-          pour suivre ton équilibre de la semaine ici.
+          Assigne un <strong>pilier</strong> à tes créneaux (Travail, Famille, Ami, Argent,
+          Sport, Maison) pour suivre ton équilibre de la semaine ici.
         </p>
       ) : (
         <div className="pillar-grid">

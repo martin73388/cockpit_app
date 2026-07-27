@@ -341,12 +341,12 @@ describe('piliers : seules les occurrences planifiées comptent comme faites', (
   })
   it('planifié ∧ fait compte, les habitudes en pause sont ignorées', () => {
     const done = habit('h1', 1, {
-      pillar: 'sommeil',
+      pillar: 'maison',
       schedule: { frequency: 'weekly', daysOfWeek: ['MO'], time: '', durationMinutes: 30, anchorDate: '' },
       completions: ['2026-07-20'],
     })
-    const paused = habit('h2', 1, { pillar: 'sommeil', active: false })
+    const paused = habit('h2', 1, { pillar: 'maison', active: false })
     const [card] = computePillarWeek([done, paused], '2026-07-23')
-    expect(card).toEqual({ pillar: 'sommeil', planned: 1, done: 1, late: 0, remaining: 0 })
+    expect(card).toEqual({ pillar: 'maison', planned: 1, done: 1, late: 0, remaining: 0 })
   })
 })

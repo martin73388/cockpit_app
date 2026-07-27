@@ -6,6 +6,7 @@ import { todayISO } from './utils/dates.js'
 import { createEngine } from './sync/engine.js'
 import { fetchSources, loadCachedSources, projectsOf } from './sync/sources.js'
 import { fetchBrief, loadCachedBrief } from './sync/brief.js'
+import { fetchAgenda, loadCachedAgenda } from './sync/agenda.js'
 import { Header } from './components/Header.jsx'
 import { TodosView } from './components/todos/TodosView.jsx'
 import { HabitsView } from './components/habits/HabitsView.jsx'
@@ -27,6 +28,7 @@ export default function App() {
   }))
   const [sources, setSources] = useState(loadCachedSources)
   const [brief, setBrief] = useState(loadCachedBrief)
+  const [agenda, setAgenda] = useState(loadCachedAgenda)
   const [updateReady, setUpdateReady] = useState(false)
   const engineRef = useRef(null)
 
@@ -45,8 +47,9 @@ export default function App() {
   // Theme.
   useEffect(() => applyTheme(ui.theme), [ui.theme])
 
-  // Refresh the read-only sources (Radar + Carnet + daily brief) — called on
-  // EVERY sync cycle (launch / focus / online / manual), not just at launch.
+  // Refresh the read-only sources (Radar + Carnet + daily brief + today's
+  // agenda) — called on EVERY sync cycle (launch / focus / online / manual),
+  // not just at launch.
   const refreshSources = useMemo(
     () => () => {
       // Report à la Sunsama : les ⭐ non terminées d'hier roulent vers
@@ -55,6 +58,7 @@ export default function App() {
       const cfg = getDriveConfig()
       fetchSources(cfg).then(setSources).catch(() => {})
       fetchBrief(cfg).then(setBrief).catch(() => {})
+      fetchAgenda(cfg).then(setAgenda).catch(() => {})
     },
     [],
   )
@@ -113,7 +117,7 @@ export default function App() {
         onOpenSettings={() => setTab('settings')}
       />
       <main className="container">
-        {tab === 'dashboard' && <DashboardView sources={sources} brief={brief} />}
+        {tab === 'dashboard' && <DashboardView sources={sources} brief={brief} agenda={agenda} />}
         {tab === 'todos' && <TodosView projects={projects} ui={ui} onUi={updateUi} />}
         {tab === 'habits' && <HabitsView />}
         {tab === 'settings' && (

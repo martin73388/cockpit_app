@@ -25,11 +25,11 @@ export function HabitsView() {
   return (
     <div>
       <div className="row" style={{ marginBottom: 16 }}>
-        <h2 style={{ fontSize: 18 }}>Habitudes</h2>
+        <h2 style={{ fontSize: 18 }}>Créneaux</h2>
         <span className="spacer" style={{ flex: 1 }} />
         {!creating && (
           <button className="btn btn-primary" onClick={() => setCreating(true)}>
-            <IconPlus width={16} height={16} /> Nouvelle habitude
+            <IconPlus width={16} height={16} /> Nouveau créneau
           </button>
         )}
       </div>
@@ -37,7 +37,7 @@ export function HabitsView() {
       {creating && (
         <div className="card settings-section" style={{ marginBottom: 16 }}>
           <div className="row" style={{ marginBottom: 12 }}>
-            <h2 style={{ fontSize: 16, flex: 1 }}>Nouvelle habitude</h2>
+            <h2 style={{ fontSize: 16, flex: 1 }}>Nouveau créneau</h2>
             <button className="btn btn-ghost btn-icon" onClick={() => setCreating(false)} aria-label="Fermer">
               <IconX />
             </button>
@@ -48,8 +48,8 @@ export function HabitsView() {
 
       {sorted.length === 0 && !creating ? (
         <div className="empty">
-          <h3>Aucune habitude</h3>
-          <p className="muted">Créez une habitude ; l'événement d'agenda est géré automatiquement.</p>
+          <h3>Aucun créneau</h3>
+          <p className="muted">Crée un créneau (sport, travail, maison…) ; l'événement d'agenda suit tout seul.</p>
         </div>
       ) : (
         <div className="habit-grid">
@@ -61,9 +61,9 @@ export function HabitsView() {
 
       {editHabit && (
         <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setEditId(null)}>
-          <div className="modal" role="dialog" aria-modal="true" aria-label="Modifier l'habitude">
+          <div className="modal" role="dialog" aria-modal="true" aria-label="Modifier le créneau">
             <div className="modal-head">
-              <h2>Modifier l'habitude</h2>
+              <h2>Modifier le créneau</h2>
               <button className="btn btn-ghost btn-icon" onClick={() => setEditId(null)} aria-label="Fermer">
                 <IconX />
               </button>

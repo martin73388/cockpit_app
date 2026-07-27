@@ -11,6 +11,7 @@ export const KEYS = {
   projects: PREFIX + 'projects-cache',
   sources: PREFIX + 'sources-cache',
   brief: PREFIX + 'brief-cache',
+  agenda: PREFIX + 'agenda-cache',
 }
 
 function available() {

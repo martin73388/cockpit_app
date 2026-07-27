@@ -4,6 +4,8 @@ import { useStore } from '../../hooks/useStore.js'
 import { STATUS_FILTERS, STATUS_LABEL, SORTS, SORT_LABEL, PRIORITIES, PRIORITY_LABEL, LAYOUTS } from '../../data/model.js'
 import { visibleTodos } from '../../utils/todoView.js'
 import { todayISO } from '../../utils/dates.js'
+import { workSlots } from '../../utils/slots.js'
+import { WorkSlots } from './WorkSlots.jsx'
 import { reorderList } from '../../utils/reorder.js'
 import { TodoItem } from './TodoItem.jsx'
 import { TodoEditModal } from './TodoEditModal.jsx'
@@ -16,6 +18,7 @@ const ALL_PRIORITIES = ['haute', 'normale', 'basse']
 
 export function TodosView({ projects, ui, onUi }) {
   const todos = useStore((s) => s.todos)
+  const habits = useStore((s) => s.habits)
   const [query, setQuery] = useState('')
   const [draft, setDraft] = useState('')
   const [editId, setEditId] = useState(null)
@@ -42,6 +45,8 @@ export function TodosView({ projects, ui, onUi }) {
     () => visibleTodos(todos, filters, projectLabelOf, today),
     [todos, query, ui.status, priorities, ui.sort, projectsById, today],
   )
+  // Créneaux de travail des 7 prochains jours, avec leur remplissage.
+  const slots = useMemo(() => workSlots(habits, todos, today), [habits, todos, today])
 
   const waitingCount = todos.filter((t) => t.status === 'waiting').length
   const scheduledCount = todos.filter((t) => t.status === 'scheduled').length
@@ -127,6 +132,9 @@ export function TodosView({ projects, ui, onUi }) {
           <IconPlus width={16} height={16} /> <span className="hide-tiny">Ajouter</span>
         </button>
       </div>
+
+      {/* Bande de lecture : la semaine de travail d'un coup d'œil. */}
+      <WorkSlots slots={slots} today={today} />
 
       <div className="toolbar">
         <div className="search row" style={{ position: 'relative' }}>
@@ -216,7 +224,9 @@ export function TodosView({ projects, ui, onUi }) {
       {editTodo && <TodoEditModal todo={editTodo} projects={projects} onClose={() => setEditId(null)} />}
       {waitingTodo && <WaitingDialog todo={waitingTodo} onClose={() => setWaitingId(null)} />}
       {followUpTodo && <FollowUpDialog sourceTodo={followUpTodo} onClose={() => setFollowUpId(null)} />}
-      {schedulingTodo && <ScheduleDialog todo={schedulingTodo} onClose={() => setScheduleId(null)} />}
+      {schedulingTodo && (
+        <ScheduleDialog todo={schedulingTodo} slots={slots} onClose={() => setScheduleId(null)} />
+      )}
 
       {justDone && (
         <div className="toast done-toast" role="status">

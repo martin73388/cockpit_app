@@ -1060,3 +1060,74 @@
   color: var(--warning);
   font-weight: 600;
 }
+
+/* ============ v9 — Créneaux de travail (mini-planning) ============ */
+
+/* Une seule ligne, qui défile plutôt que de s'empiler : le planning ne doit
+   jamais pousser la liste des tâches vers le bas. */
+.work-slots {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+  margin-bottom: var(--space-3);
+}
+.work-slots::-webkit-scrollbar {
+  display: none;
+}
+.work-slot {
+  flex: none;
+  display: grid;
+  gap: 1px;
+  min-width: 108px;
+  padding: 6px 10px;
+  border: 1px solid var(--primary-border);
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+}
+button.work-slot {
+  cursor: pointer;
+}
+button.work-slot:disabled {
+  cursor: not-allowed;
+}
+.work-slot.full {
+  background: var(--surface-2);
+  border-color: var(--border);
+  opacity: 0.7;
+}
+.work-slot.on {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.slot-when {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.slot-free {
+  font-size: 11px;
+  color: var(--primary);
+  white-space: nowrap;
+}
+.work-slot.full .slot-free {
+  color: var(--text-faint);
+}
+/* Jauge de remplissage : 3 px, aucune légende — le chiffre est déjà au-dessus. */
+.slot-bar {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+  margin-top: 2px;
+}
+.slot-bar i {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}

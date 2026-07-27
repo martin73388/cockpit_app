@@ -3,15 +3,19 @@ import { store } from '../../data/store.js'
 import { SLOT_DURATIONS } from '../../data/model.js'
 import { todayISO, addDaysISO, formatDueDate } from '../../utils/dates.js'
 import { TimeSelect } from '../common/TimeSelect.jsx'
+import { WorkSlots } from './WorkSlots.jsx'
 import { IconX } from '../common/Icons.jsx'
 
 // « Planifier » : réserver un créneau. La tâche sort de À faire et le robot
 // dépose l'événement dans l'agenda — la validation reste manuelle, le jour venu.
-export function ScheduleDialog({ todo, onClose }) {
+// Le chemin normal est de taper un créneau de travail ; la saisie manuelle
+// reste là pour tout ce qui n'entre pas dans un créneau.
+export function ScheduleDialog({ todo, slots = [], onClose }) {
   const today = todayISO()
   const s = todo.scheduled
   const [date, setDate] = useState(s?.date || today)
   const [time, setTime] = useState(s?.time || '')
+  const [pickedKey, setPickedKey] = useState(null)
   // À défaut de créneau existant, on part du temps estimé de la tâche : le
   // créneau réservé colle alors à ce qu'elle demande vraiment.
   const [durationMinutes, setDuration] = useState(s?.durationMinutes || todo.estimateMinutes || 60)
@@ -52,8 +56,26 @@ export function ScheduleDialog({ todo, onClose }) {
             Elle revient dans « Aujourd'hui » le jour venu — c'est toi qui la valides.
           </p>
 
+          {slots.length > 0 && (
+            <div>
+              <span className="label">Dans un créneau de travail</span>
+              <WorkSlots
+                slots={slots}
+                today={today}
+                selectedKey={pickedKey}
+                onPick={(sl) => {
+                  // La tâche se pose à la suite de ce qui occupe déjà le créneau.
+                  setDate(sl.date)
+                  setTime(sl.nextStart)
+                  setDuration(todo.estimateMinutes || durationMinutes || 60)
+                  setPickedKey(sl.key)
+                }}
+              />
+            </div>
+          )}
+
           <div>
-            <span className="label">Quand ?</span>
+            <span className="label">{slots.length > 0 ? 'Ou à une date libre' : 'Quand ?'}</span>
             <div className="slot-presets" role="group" aria-label="Raccourcis de date">
               {presets.map((p) => (
                 <button
@@ -61,7 +83,10 @@ export function ScheduleDialog({ todo, onClose }) {
                   type="button"
                   className="chip"
                   aria-pressed={date === p.value}
-                  onClick={() => setDate(p.value)}
+                  onClick={() => {
+                    setDate(p.value)
+                    setPickedKey(null)
+                  }}
                 >
                   {p.label}
                 </button>
@@ -73,7 +98,10 @@ export function ScheduleDialog({ todo, onClose }) {
               style={{ marginTop: 8 }}
               autoFocus
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                setDate(e.target.value)
+                setPickedKey(null) // saisie manuelle : on se détache du créneau
+              }}
               aria-label="Date du créneau"
             />
           </div>
@@ -81,7 +109,15 @@ export function ScheduleDialog({ todo, onClose }) {
           <div className="form-row">
             <div>
               <label className="label" htmlFor="slot-time-h">Heure (optionnel)</label>
-              <TimeSelect id="slot-time-h" time={time} onChange={setTime} emptyLabel="— journée" />
+              <TimeSelect
+                id="slot-time-h"
+                time={time}
+                onChange={(t) => {
+                  setTime(t)
+                  setPickedKey(null)
+                }}
+                emptyLabel="— journée"
+              />
             </div>
             <div>
               <label className="label" htmlFor="slot-duration">Durée</label>

@@ -33,8 +33,8 @@ function carnetTodo(patch = {}) {
 // son bouton « créer une tâche depuis un projet » cesse de fonctionner.
 describe('interop Carnet : version du fichier partagé', () => {
   it('version courante de cockpit-data.json', () => {
-    expect(SCHEMA_VERSION).toBe(7)
-    expect(canonicalize(state()).version).toBe(7)
+    expect(SCHEMA_VERSION).toBe(8)
+    expect(canonicalize(state()).version).toBe(8)
   })
 })
 

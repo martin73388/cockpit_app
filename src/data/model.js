@@ -6,7 +6,7 @@
 import { stamp } from './clock.js'
 
 export const APP = 'cockpit'
-export const SCHEMA_VERSION = 7
+export const SCHEMA_VERSION = 8
 
 export const PRIORITIES = ['haute', 'normale', 'basse']
 export const PRIORITY_LABEL = { haute: 'Haute', normale: 'Normale', basse: 'Basse' }
@@ -40,8 +40,21 @@ export const LAYOUTS = ['rows', 'cards']
 export const FREQUENCIES = ['daily', 'weekly', 'biweekly']
 export const FREQUENCY_LABEL = { daily: 'Quotidienne', weekly: 'Hebdomadaire', biweekly: 'Toutes les 2 semaines' }
 
-export const PILLARS = ['sommeil', 'sport', 'couple', 'proches', 'repas']
-export const PILLAR_LABEL = { sommeil: 'Sommeil', sport: 'Sport', couple: 'Couple', proches: 'Proches', repas: 'Repas' }
+// v8 — piliers redéfinis. Les anciens (sommeil/couple/proches/repas) ne sont
+// plus valides : canonicalize les ramène à null, à réassigner dans l'app.
+export const PILLARS = ['travail', 'famille', 'ami', 'argent', 'sport', 'maison']
+export const PILLAR_LABEL = {
+  travail: 'Travail',
+  famille: 'Famille',
+  ami: 'Ami',
+  argent: 'Argent',
+  sport: 'Sport',
+  maison: 'Maison',
+}
+
+// Le pilier « travail » a un rôle particulier : ses créneaux sont ceux dans
+// lesquels on vient poser des tâches (mini-planning + dialogue « Planifier »).
+export const WORK_PILLAR = 'travail'
 
 // Ordered Mon-first, matching human recurrence display.
 export const DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
