@@ -16,15 +16,38 @@ export function isAgendaFile(obj) {
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 
+// "HH:MM" -> minutes depuis minuit (l'appelant a déjà validé le format).
+export function hm(t) {
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
+}
+
+// Durée par défaut quand le robot n'envoie pas d'heure de fin (ancienne version
+// du bloc Apps Script) : la timeline reste lisible plutôt que de refuser.
+const DEFAULT_MINUTES = 60
+
 export function canonAgenda(a) {
   const events = (Array.isArray(a.events) ? a.events : [])
     .filter((e) => e && typeof e === 'object' && typeof e.title === 'string' && e.title.trim())
-    .map((e) => ({
-      time: typeof e.time === 'string' && TIME_RE.test(e.time) ? e.time : '',
-      title: e.title.trim(),
-      // Un événement « journée entière » n'a pas d'heure et se range en tête.
-      allDay: !!e.allDay || !(typeof e.time === 'string' && TIME_RE.test(e.time)),
-    }))
+    .map((e) => {
+      const time = typeof e.time === 'string' && TIME_RE.test(e.time) ? e.time : ''
+      const end = typeof e.end === 'string' && TIME_RE.test(e.end) ? e.end : ''
+      // Une fin antérieure au début (événement à cheval sur minuit) est
+      // ramenée à la fin de journée plutôt que de produire une durée négative.
+      let minutes = DEFAULT_MINUTES
+      if (time && end) {
+        const d = hm(end) - hm(time)
+        minutes = d > 0 ? d : 24 * 60 - hm(time)
+      }
+      return {
+        time,
+        end,
+        durationMinutes: time ? minutes : 0,
+        title: e.title.trim(),
+        // Un événement « journée entière » n'a pas d'heure et se range en tête.
+        allDay: !!e.allDay || !time,
+      }
+    })
     .sort((x, y) => (x.allDay === y.allDay ? x.time.localeCompare(y.time) : x.allDay ? -1 : 1))
   return {
     date: typeof a.date === 'string' ? a.date : '',

@@ -184,3 +184,35 @@ describe('v9 : agenda du jour', () => {
     expect(canonAgenda(once)).toEqual(once)
   })
 })
+
+describe('v10 : durées pour la timeline', () => {
+  const ev = (o) => canonAgenda({ app: 'cockpit-agenda', date: WED, events: [o] }).events[0]
+
+  it('l’heure de fin donne la durée du bloc', () => {
+    expect(ev({ time: '09:00', end: '10:30', title: 'Point' }).durationMinutes).toBe(90)
+  })
+
+  it('sans heure de fin, on retombe sur une heure — pas sur zéro', () => {
+    // Ancienne version du bloc Apps Script : la timeline doit rester lisible.
+    expect(ev({ time: '09:00', title: 'Point' }).durationMinutes).toBe(60)
+    expect(ev({ time: '09:00', end: 'nawak', title: 'Point' }).durationMinutes).toBe(60)
+  })
+
+  it('une fin avant le début court jusqu’à la fin de journée, jamais en négatif', () => {
+    expect(ev({ time: '23:00', end: '01:00', title: 'Nuit' }).durationMinutes).toBe(60)
+  })
+
+  it('un événement journée entière n’a pas de durée à placer', () => {
+    const e = ev({ time: '', title: 'Vacances', allDay: true })
+    expect(e.allDay).toBe(true)
+    expect(e.durationMinutes).toBe(0)
+  })
+
+  it('reste idempotent avec les nouveaux champs', () => {
+    const once = canonAgenda({
+      app: 'cockpit-agenda', date: WED,
+      events: [{ time: '09:00', end: '10:30', title: 'Point' }, { time: '', title: 'Vacances', allDay: true }],
+    })
+    expect(canonAgenda(once)).toEqual(once)
+  })
+})

@@ -1131,3 +1131,97 @@ button.work-slot:disabled {
   height: 100%;
   background: var(--primary);
 }
+
+/* ============ v10 — Agenda du jour en timeline ============ */
+
+.agenda-allday {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+/* La bande défile : l'échelle horaire est fixe pour rester lisible sur 240 px. */
+.agenda-scroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 calc(-1 * var(--space-2));
+  padding: 0 var(--space-2);
+}
+.agenda-scroll::-webkit-scrollbar {
+  display: none;
+}
+.agenda-timeline {
+  position: relative;
+  padding-top: 14px;
+}
+.agenda-hours {
+  position: relative;
+  height: 12px;
+}
+.agenda-tick {
+  position: absolute;
+  top: -14px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.agenda-track {
+  position: relative;
+  height: 42px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent calc(56px - 1px),
+    var(--border) calc(56px - 1px),
+    var(--border) 56px
+  );
+}
+.agenda-block {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 2px 5px;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--primary-soft);
+  border-left: 3px solid var(--primary);
+  overflow: hidden;
+}
+.agenda-block b {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agenda-block i {
+  font-size: 10px;
+  font-style: normal;
+  color: var(--text-muted);
+}
+/* Repère « maintenant » : le seul trait rouge de la vue. */
+.agenda-now {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--danger);
+  border-radius: 1px;
+}
+.agenda-now::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+}

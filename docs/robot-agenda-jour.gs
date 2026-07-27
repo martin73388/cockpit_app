@@ -48,12 +48,18 @@ function syncAgenda() {
       for (var i = 0; i < list.length && events.length < AGENDA_MAX; i++) {
         var ev = list[i];
         var allDay = ev.isAllDayEvent();
-        var t = '';
+        var t = '', e2 = '';
         if (!allDay) {
           var s = ev.getStartTime();
+          var f = ev.getEndTime();
           t = agdPad_(s.getHours()) + ':' + agdPad_(s.getMinutes());
+          // L'heure de fin donne sa largeur au bloc dans la timeline de l'app.
+          // Un événement qui déborde sur le lendemain est ramené à 23:59.
+          e2 = (f.getTime() - start.getTime() >= 24 * 3600 * 1000)
+            ? '23:59'
+            : agdPad_(f.getHours()) + ':' + agdPad_(f.getMinutes());
         }
-        events.push({ time: t, title: ev.getTitle() || '(sans titre)', allDay: allDay });
+        events.push({ time: t, end: e2, title: ev.getTitle() || '(sans titre)', allDay: allDay });
       }
     } catch (e) {
       return;   // agenda illisible : on laisse le fichier précédent en place
