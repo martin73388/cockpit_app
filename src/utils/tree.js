@@ -103,8 +103,8 @@ export function buildTree(todos, maxDepth = 12) {
 }
 
 /** Le nœud et toute sa descendance, sans jamais boucler sur un cycle résiduel. */
-export function subtreeIds(todos, id) {
-  const map = childrenByParent(todos)
+export function subtreeIds(todos, id, kids) {
+  const map = kids || childrenByParent(todos)
   const out = []
   const seen = new Set()
   const stack = [id]
@@ -160,11 +160,11 @@ export function canCheck(todo, children) {
  * qui permet d'afficher « 2 h 30 · 2 étapes non chronométrées » plutôt qu'un
  * total faux présenté comme exact.
  */
-export function spentOf(todos, id) {
+export function spentOf(todos, id, kids) {
   const byId = new Map(todos.map((t) => [t.id, t]))
   let minutes = 0
   let missing = 0
-  for (const nid of subtreeIds(todos, id)) {
+  for (const nid of subtreeIds(todos, id, kids)) {
     const t = byId.get(nid)
     if (!t) continue
     const m = Number(t.spentMinutes)
@@ -188,10 +188,10 @@ export function formatSpent(minutes) {
  * bouclerait à l'infini. canonicalize sait casser un cycle né d'une fusion,
  * mais un cycle qu'on peut refuser à la source ne doit jamais être écrit.
  */
-export function canMoveUnder(todos, id, parentId) {
+export function canMoveUnder(todos, id, parentId, kids) {
   if (!parentId) return true
   if (parentId === id) return false
-  return !subtreeIds(todos, id).includes(parentId)
+  return !subtreeIds(todos, id, kids).includes(parentId)
 }
 
 /**
@@ -202,8 +202,8 @@ export function canMoveUnder(todos, id, parentId) {
  * On ne réordonne donc qu'à rang effectif ÉGAL — et le bouton est désactivé
  * plutôt que silencieusement inopérant.
  */
-export function reorderNeighbour(todos, id, dir) {
-  const map = childrenByParent(todos)
+export function reorderNeighbour(todos, id, dir, kids, ranks) {
+  const map = kids || childrenByParent(todos)
   const self = todos.find((t) => t.id === id)
   if (!self) return null
   const byId = new Map(todos.map((t) => [t.id, t]))
@@ -211,7 +211,7 @@ export function reorderNeighbour(todos, id, dir) {
   const i = siblings.findIndex((t) => t.id === id)
   const j = i + (dir < 0 ? -1 : 1)
   if (i < 0 || j < 0 || j >= siblings.length) return null
-  const eff = effectiveRanks(todos, map)
+  const eff = ranks || effectiveRanks(todos, map)
   const rank = (t) => eff.get(t.id) || NEUTRAL_RANK
   return rank(siblings[j]) === rank(self) ? siblings[j] : null
 }

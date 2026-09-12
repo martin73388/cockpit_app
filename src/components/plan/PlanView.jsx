@@ -20,18 +20,18 @@ import { childrenByParent, ancestorsOf, effectiveRanks, reorderNeighbour, progre
 const INDENT = 14
 const MAX_INDENT = 4
 
-function Row({ node, todos, eff, onAsk, ask, onSpent, onCleared, onAddUnder, addingHere, active, onActivate, now, onStart, onStop }) {
+function Row({ node, todos, byParent, eff, onAsk, ask, onSpent, onCleared, onAddUnder, addingHere, active, onActivate, now, onStart, onStop }) {
   const { todo, depth, children } = node
   const open = children.filter((c) => c.status !== 'done')
   const prog = progressOf(children)
   const checkable = canCheck(todo, children)
-  const spent = spentOf(todos, todo.id)
+  const spent = spentOf(todos, todo.id, byParent)
   const late = isOverdue(todo)
   const name = todo.title || 'Sans titre'
   const running = todo.timerStart ? Math.round((now - todo.timerStart) / 60000) : 0
   const rank = eff.get(todo.id) || null
-  const canUp = !!reorderNeighbour(todos, todo.id, -1)
-  const canDown = !!reorderNeighbour(todos, todo.id, 1)
+  const canUp = !!reorderNeighbour(todos, todo.id, -1, byParent, eff)
+  const canDown = !!reorderNeighbour(todos, todo.id, 1, byParent, eff)
 
   return (
     <>
@@ -307,6 +307,7 @@ function Group({ parentId, depth, byParent, todos, eff, onAsk, ask, onSpent, onC
             <Row
               node={{ todo, depth, children: byParent.get(todo.id) || [] }}
               todos={todos}
+              byParent={byParent}
               eff={eff}
               onAsk={onAsk}
               ask={ask}
