@@ -667,3 +667,89 @@ describe('v9 : Plan est l’écran d’arrivée', () => {
     expect(ui.theme).toBe('dark') // le reste des préférences survit
   })
 })
+
+describe('v9 : corriger et supprimer depuis le Plan', () => {
+  let s
+  beforeEach(() => {
+    s = createStore(state())
+  })
+  const find = (id) => s.getSnapshot().todos.find((t) => t.id === id)
+  const all = () => s.getSnapshot().todos
+
+  it('renommer met à jour le titre', () => {
+    const a = s.addTodo('Faire la factre')
+    expect(s.renameTodo(a, 'Faire la facture')).toBe(true)
+    expect(find(a).title).toBe('Faire la facture')
+  })
+
+  it('un titre vide est refusé, pas enregistré', () => {
+    // Sur 240 px, vider le champ par accident est trop facile, et une tâche
+    // sans nom dans un arbre ne se retrouve plus.
+    const a = s.addTodo('Un titre')
+    expect(s.renameTodo(a, '   ')).toBe(false)
+    expect(find(a).title).toBe('Un titre')
+  })
+
+  it('les espaces autour sont retirés', () => {
+    const a = s.addTodo('x')
+    s.renameTodo(a, '  Relancer Berger  ')
+    expect(find(a).title).toBe('Relancer Berger')
+  })
+
+  it('supprimer un sujet fait remonter ses étapes à la racine', () => {
+    // Décision assumée : rien ne disparaît en silence sous un geste unique.
+    const p = s.addTodo('Sujet')
+    const e = s.addChildTodo(p, 'Une étape')
+    s.deleteTodo(p)
+    expect(find(p)).toBeUndefined()
+    expect(find(e)).toBeTruthy()
+    expect(ids(rootsOf(all()))).toContain(e)
+  })
+
+  it('une suppression laisse une pierre tombale : elle ne revient pas par la synchro', () => {
+    const a = s.addTodo('A')
+    s.deleteTodo(a)
+    expect(s.getSnapshot().deleted.some((t) => t.id === a)).toBe(true)
+    expect(canonicalize(s.getSnapshot()).todos.find((t) => t.id === a)).toBeUndefined()
+  })
+})
+
+describe('v9 : mettre en attente depuis le Plan', () => {
+  let s
+  beforeEach(() => {
+    s = createStore(state())
+  })
+  const find = (id) => s.getSnapshot().todos.find((t) => t.id === id)
+
+  it('poser l’attente et son motif', () => {
+    const a = s.addTodo('Envoyer le devis')
+    s.setTodoWaiting(a, { note: 'validation de Berger' })
+    expect(find(a).status).toBe('waiting')
+    expect(find(a).waiting.note).toBe('validation de Berger')
+  })
+
+  it('reprendre la rend à faire', () => {
+    const a = s.addTodo('A')
+    s.setTodoWaiting(a, { note: 'x' })
+    s.resumeTodo(a)
+    expect(find(a).status).toBe('todo')
+    expect(find(a).waiting).toBe(null)
+  })
+
+  it('une tâche en attente survit à la fusion avec son motif', () => {
+    const a = s.addTodo('A')
+    s.setTodoWaiting(a, { note: 'réponse de Berger' })
+    const once = canonicalize(s.getSnapshot())
+    expect(once.todos[0].status).toBe('waiting')
+    expect(once.todos[0].waiting.note).toBe('réponse de Berger')
+    expect(canonicalize(once)).toEqual(once)
+  })
+
+  it('la cocher clôt l’attente', () => {
+    const a = s.addTodo('A')
+    s.setTodoWaiting(a, { note: 'x' })
+    s.togglePlanDone(a)
+    expect(find(a).status).toBe('done')
+    expect(find(a).waiting).toBe(null)
+  })
+})

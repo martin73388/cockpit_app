@@ -1453,3 +1453,27 @@ button.work-slot:disabled {
 .plan-next input::placeholder { color: var(--text-faint); }
 .plan-next input:focus { outline: none; border-bottom-color: var(--accent, var(--success)); }
 .plan-next-btns { display: flex; gap: 4px; }
+
+/* Renommage en place : le champ prend exactement la place du titre, pour que
+   la ligne ne saute pas au moment où on commence à taper. */
+.plan-rename { flex: 1; min-width: 0; display: flex; }
+.plan-rename input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid var(--accent, var(--success));
+  background: transparent;
+  padding: 7px 0;
+  font-size: 14px;
+  color: var(--text);
+}
+.plan-rename input:focus { outline: none; }
+
+/* Suppression armée : elle doit se voir comme irréversible AVANT le second tap. */
+.plan-move.is-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+  font-weight: 600;
+}
+.plan-move.is-wait { color: var(--warning); border-color: var(--warning); }

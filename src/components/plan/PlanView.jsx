@@ -20,7 +20,7 @@ import { childrenByParent, ancestorsOf, effectiveRanks, reorderNeighbour, progre
 const INDENT = 14
 const MAX_INDENT = 4
 
-function Row({ node, todos, byParent, eff, onAsk, ask, onSpent, onCleared, onAddUnder, addingHere, active, onActivate, now, onStart, onStop }) {
+function Row({ node, todos, byParent, eff, onAsk, ask, onSpent, onCleared, onAddUnder, addingHere, active, onActivate, now, onStart, onStop, editing, armed, onEdit, onArm }) {
   const { todo, depth, children } = node
   const open = children.filter((c) => c.status !== 'done')
   const prog = progressOf(children)
@@ -49,15 +49,19 @@ function Row({ node, todos, byParent, eff, onAsk, ask, onSpent, onCleared, onAdd
             240 px, trois boutons permanents mangeaient 37 % de la largeur et
             les titres se coupaient en plein mot. Ils n'apparaissent donc que
             sur la ligne qu'on touche. */}
-        <button
-          type="button"
-          className={`plan-title${late ? ' is-late' : ''}`}
-          onClick={() => onActivate(active ? null : todo.id)}
-          aria-expanded={active}
-          aria-label={`${name} — ouvrir les actions`}
-        >
-          {name}
-        </button>
+        {editing ? (
+          <RenameField id={todo.id} name={name} onDone={() => onEdit(null)} />
+        ) : (
+          <button
+            type="button"
+            className={`plan-title${late ? ' is-late' : ''}`}
+            onClick={() => onActivate(active ? null : todo.id)}
+            aria-expanded={active}
+            aria-label={`${name} — ouvrir les actions`}
+          >
+            {name}
+          </button>
+        )}
 
         {/* Le rang affiché est l'EFFECTIF : un sujet porte la note la plus
             prioritaire de ses étapes, sinon une urgence enterrée ne se verrait
@@ -178,6 +182,47 @@ function Row({ node, todos, byParent, eff, onAsk, ask, onSpent, onCleared, onAdd
         </div>
       )}
 
+      {active && (
+        <div className="plan-moves" role="group" aria-label={`Modifier : ${name}`}>
+          <button type="button" className="plan-move" onClick={() => onEdit(todo.id)} aria-label={`Renommer : ${name}`}>
+            ✎ renommer
+          </button>
+          {todo.status === 'waiting' ? (
+            <button type="button" className="plan-move is-wait" onClick={() => store.resumeTodo(todo.id)} aria-label={`Ne plus attendre : ${name}`}>
+              ⧗ reprendre
+            </button>
+          ) : (
+            <button type="button" className="plan-move" onClick={() => store.setTodoWaiting(todo.id, {})} aria-label={`Mettre en attente : ${name}`}>
+              ⧗ en attente
+            </button>
+          )}
+          {/* Armer puis confirmer : sur un écran de 240 px, le doigt rate, et
+              supprimer une branche emporterait le rangement de ses étapes. */}
+          <button
+            type="button"
+            className={`plan-move${armed ? ' is-danger' : ''}`}
+            onClick={() => (armed ? store.deleteTodo(todo.id) : onArm(todo.id))}
+            aria-label={
+              armed
+                ? `Confirmer la suppression de : ${name}`
+                : `Supprimer : ${name}${children.length ? ` (ses ${children.length} étape${children.length > 1 ? 's' : ''} remonteront à la racine)` : ''}`
+            }
+          >
+            {armed
+              ? children.length
+                ? `sûr ? (${children.length} étape${children.length > 1 ? 's' : ''} remonte${children.length > 1 ? 'nt' : ''})`
+                : 'sûr ?'
+              : '🗑 supprimer'}
+          </button>
+        </div>
+      )}
+
+      {/* Le motif ne s'affiche qu'une fois l'attente posée : un champ « pourquoi
+          tu attends » sur une tâche qui n'attend rien ne veut rien dire. */}
+      {active && todo.status === 'waiting' && (
+        <WaitNote id={todo.id} name={name} note={todo.waiting?.note || ''} />
+      )}
+
       {todo.status === 'waiting' && todo.waiting?.note ? (
         <p className="plan-wait-note">{todo.waiting.note}</p>
       ) : null}
@@ -210,6 +255,60 @@ function Row({ node, todos, byParent, eff, onAsk, ask, onSpent, onCleared, onAdd
 
       {ask && ask.id === todo.id && <Remaining id={todo.id} name={name} onDone={onCleared} />}
     </>
+  )
+}
+
+// Renommage en place : le titre cède sa ligne à un champ. Échap annule,
+// Entrée valide, et un titre vidé par accident est refusé plutôt qu'enregistré
+// — une tâche sans nom, dans un arbre, ne se retrouve plus.
+function RenameField({ id, name, onDone }) {
+  const [value, setValue] = useState(name)
+  const ref = useRef(null)
+  useEffect(() => {
+    ref.current?.focus()
+    ref.current?.select()
+  }, [])
+  function submit(e) {
+    e.preventDefault()
+    store.renameTodo(id, value)
+    onDone()
+  }
+  return (
+    <form className="plan-rename" onSubmit={submit}>
+      <input
+        ref={ref}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={submit}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onDone()
+        }}
+        aria-label={`Nouveau nom de : ${name}`}
+        enterKeyHint="done"
+      />
+    </form>
+  )
+}
+
+// Ce qu'on attend. Enregistré à la sortie du champ : sur un téléphone on ferme
+// le clavier sans valider, et le motif serait perdu.
+function WaitNote({ id, name, note }) {
+  const [value, setValue] = useState(note)
+  useEffect(() => setValue(note), [note])
+  const save = () => {
+    if (value !== note) store.setTodoWaiting(id, { note: value.trim() })
+  }
+  return (
+    <form className="plan-next" onSubmit={(e) => { e.preventDefault(); save() }}>
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={save}
+        placeholder="Tu attends quoi ?"
+        aria-label={`Ce que tu attends sur : ${name}`}
+        enterKeyHint="done"
+      />
+    </form>
   )
 }
 
@@ -276,7 +375,7 @@ function AddLine({ parentId, label }) {
   )
 }
 
-function Group({ parentId, depth, byParent, todos, eff, onAsk, ask, onSpent, onCleared, addUnder, onAddUnder, activeId, onActivate, now, onStart, onStop }) {
+function Group({ parentId, depth, byParent, todos, eff, onAsk, ask, onSpent, onCleared, addUnder, onAddUnder, activeId, onActivate, now, onStart, onStop, editingId, armedId, onEdit, onArm }) {
   const open = byParent.get(parentId || ROOT) || []
   // `byParent` est déjà bâti sur les tâches vivantes + celle en attente de
   // réponse : on n'a rien à refiltrer ici, sinon la question disparaîtrait.
@@ -320,6 +419,10 @@ function Group({ parentId, depth, byParent, todos, eff, onAsk, ask, onSpent, onC
               now={now}
               onStart={onStart}
               onStop={onStop}
+              editing={editingId === todo.id}
+              armed={armedId === todo.id}
+              onEdit={onEdit}
+              onArm={onArm}
             />
             {addUnder === todo.id && (
               <div style={{ paddingLeft: INDENT }}>
@@ -343,6 +446,10 @@ function Group({ parentId, depth, byParent, todos, eff, onAsk, ask, onSpent, onC
               now={now}
               onStart={onStart}
               onStop={onStop}
+              editingId={editingId}
+              armedId={armedId}
+              onEdit={onEdit}
+              onArm={onArm}
             />
           </li>
         </Fragment>
@@ -361,6 +468,16 @@ export function PlanView() {
   const [ask, setAsk] = useState(null) // { id, preset, capped }
   const [addUnder, setAddUnder] = useState(null)
   const [activeId, setActiveId] = useState(null)
+  const [editingId, setEditingId] = useState(null)
+  const [armedId, setArmedId] = useState(null)
+
+  // Changer de ligne referme tout : une suppression armée sur une tâche puis
+  // oubliée se déclencherait au premier tap sur une AUTRE ligne.
+  function activate(id) {
+    setActiveId(id)
+    setEditingId(null)
+    setArmedId(null)
+  }
   const [now, setNow] = useState(() => Date.now())
 
   // Le tic-tac ne tourne QUE si un chrono tourne : une page au repos ne doit
@@ -431,7 +548,11 @@ export function PlanView() {
         addUnder={addUnder}
         onAddUnder={setAddUnder}
         activeId={activeId}
-        onActivate={setActiveId}
+        onActivate={activate}
+        editingId={editingId}
+        armedId={armedId}
+        onEdit={setEditingId}
+        onArm={setArmedId}
         now={now}
         onStart={onStart}
         onStop={onStop}

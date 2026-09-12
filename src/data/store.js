@@ -457,6 +457,19 @@ export function createStore(initial) {
       return created ? created.id : null
     },
 
+    // Renommer. Un titre vide est REFUSE plutot qu'enregistre : sur un ecran
+    // etroit, effacer le champ par accident est trop facile, et une tache sans
+    // nom dans un arbre devient impossible a retrouver.
+    renameTodo(id, title) {
+      const t = (title || '').trim()
+      if (!t) return false
+      mutate((s) => ({
+        ...s,
+        todos: s.todos.map((x) => (x.id === id && x.title !== t ? { ...x, title: t, updatedAt: stamp() } : x)),
+      }))
+      return true
+    },
+
     // Le temps qu'on PREVOIT d'y passer. C'est lui qui declenche la question
     // du temps reel a la coche : sans estimation, Cockpit ne demande rien.
     setEstimate(id, minutes) {
