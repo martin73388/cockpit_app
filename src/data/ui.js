@@ -2,7 +2,7 @@
 import { KEYS, load, save } from './persist.js'
 
 const DEFAULT_UI = {
-  tab: 'dashboard', // v2: dashboard is the default tab (not persisted)
+  tab: 'plan', // v9 : Plan est l'écran d'arrivée (jamais persisté — voir getUi)
   layout: 'rows', // 'rows' | 'cards'
   sort: 'manual', // manual | due | priority | created
   status: 'all', // all | todo | waiting | done | overdue
@@ -12,7 +12,9 @@ const DEFAULT_UI = {
 
 export function getUi() {
   const stored = load(KEYS.ui) || {}
-  delete stored.tab // older versions persisted the tab; always open on Dashboard
+  // Les anciennes versions persistaient l'onglet : on l'ignore pour que l'app
+  // ouvre toujours au même endroit, quel que soit l'écran quitté la dernière fois.
+  delete stored.tab
   // Migration du pref v2 (priority: 'all'|'haute'|…) vers le multi-choix.
   if (typeof stored.priority === 'string') {
     stored.priorities = stored.priority === 'all' ? ['haute', 'normale', 'basse'] : [stored.priority]

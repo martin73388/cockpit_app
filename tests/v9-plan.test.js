@@ -651,3 +651,19 @@ describe('v9 : la séparation des urgentes', () => {
     expect(rootsOf(todos)[0].id).toBe('sujet')
   })
 })
+
+describe('v9 : Plan est l’écran d’arrivée', () => {
+  it('l’app ouvre sur Plan', async () => {
+    const { getUi } = await import('../src/data/ui.js')
+    expect(getUi().tab).toBe('plan')
+  })
+
+  it('l’onglet quitté la veille ne change pas l’écran d’arrivée', async () => {
+    const { KEYS, save } = await import('../src/data/persist.js')
+    const { getUi } = await import('../src/data/ui.js')
+    save(KEYS.ui, { tab: 'habits', theme: 'dark' })
+    const ui = getUi()
+    expect(ui.tab).toBe('plan')
+    expect(ui.theme).toBe('dark') // le reste des préférences survit
+  })
+})
