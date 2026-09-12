@@ -70,7 +70,13 @@ export function visibleTodos(todos, filters, projectLabelOf = () => '', today = 
   const q = (filters.query || '').trim().toLowerCase()
   const cmp = COMPARATORS[filters.sort] || COMPARATORS.manual
   const prios = Array.isArray(filters.priorities) ? filters.priorities : null
+  // v9 — une etape creee dans la page Plan n'est pas une tache de premier
+  // niveau. L'afficher ici ferait apparaitre un sujet decoupe comme N lignes
+  // sans lien entre elles, et tripler le compteur. Les taches existantes n'ont
+  // pas de parent : cette ligne ne change rien tant que le Plan n'est pas utilise.
+  const ids = new Set(todos.map((t) => t.id))
   const filtered = todos.filter((t) => {
+    if (t.parentId && ids.has(t.parentId)) return false
     if (!matchesStatus(t, filters.status, today)) return false
     if (prios && prios.length > 0 && prios.length < 3 && !prios.includes(t.priority)) return false
     if (!matchesQuery(t, q, projectLabelOf(t.projectId))) return false

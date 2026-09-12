@@ -6,7 +6,7 @@
 import { stamp } from './clock.js'
 
 export const APP = 'cockpit'
-export const SCHEMA_VERSION = 8
+export const SCHEMA_VERSION = 9
 
 export const PRIORITIES = ['haute', 'normale', 'basse']
 export const PRIORITY_LABEL = { haute: 'Haute', normale: 'Normale', basse: 'Basse' }
@@ -31,6 +31,11 @@ export const SLOT_DURATIONS = [15, 30, 45, 60, 90, 120]
 // Temps estimé pour faire une tâche (minutes). Sert à choisir quoi faire d'un
 // créneau libre — et à dimensionner le créneau quand on planifie.
 export const ESTIMATES = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240]
+
+// v9 — temps réellement passé, proposé au moment de cocher. Volontairement
+// court : six boutons tiennent sur une ligne à 240 px, au-delà il faudrait
+// faire défiler et le geste cesserait d'être un seul tap.
+export const SPENT_CHOICES = [5, 15, 30, 60, 120, 240]
 
 export const SORTS = ['manual', 'due', 'priority', 'created']
 export const SORT_LABEL = { manual: 'Manuel', due: 'Échéance', priority: 'Priorité', created: 'Création' }
@@ -92,6 +97,15 @@ export function newTodo(patch = {}) {
     projectId: null,
     projectSource: null, // 'carnet' quand la tâche a été créée depuis Carnet (écrit par lui)
     order: t, // large monotone default -> new items append at the end of manual order
+    // v9 — l'arbre du Plan. null = racine. On relie par le PARENT et non par une
+    // liste d'enfants : chaque nœud reste un objet de fusion autonome, donc deux
+    // appareils qui touchent deux branches gardent les deux modifications. Un
+    // arbre imbriqué dans la todo n'en formerait qu'une seule, et le perdant du
+    // dernier-écrit-gagne perdrait sa branche entière, en silence.
+    parentId: null,
+    // v9 — temps réellement passé sur CETTE tâche (hors descendants). Le total
+    // d'un sujet est la somme de l'arbre, calculée à l'affichage.
+    spentMinutes: null,
     subtasks: [],
     createdAt: t,
     updatedAt: t,

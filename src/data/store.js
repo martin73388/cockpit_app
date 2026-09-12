@@ -7,6 +7,7 @@
 //   merge) updates the UI WITHOUT scheduling another push — avoids feedback loops.
 import { stamp, observe } from './clock.js'
 import { todayISO } from '../utils/dates.js'
+import { childrenByParent, ancestorsOf, canMoveUnder } from '../utils/tree.js'
 import { emptyState, newTodo, newSubtask, newHabit, newInboxItem, tombstone } from './model.js'
 import { canonicalize, stableStringify } from '../sync/merge.js'
 import { KEYS, load, save } from './persist.js'
@@ -276,6 +277,93 @@ export function createStore(initial) {
       })
     },
 
+    // ---------- v9 : l'arbre de la page Plan ----------
+
+    // Une etape sous un sujet. Un seul objet ecrit : le parent n'est pas touche,
+    // donc creer une etape ne peut pas entrer en conflit avec une modification
+    // faite au meme moment sur le sujet depuis l'autre appareil.
+    addChildTodo(parentId, title) {
+      const t = (title || '').trim()
+      if (!t) return null
+      const created = newTodo({ title: t, parentId: parentId || null })
+      let ok = false
+      mutate((s) => {
+        if (parentId && !s.todos.some((x) => x.id === parentId)) return s
+        ok = true
+        return { ...s, todos: [...s.todos, created] }
+      })
+      return ok ? created.id : null
+    },
+
+    // Ranger sous la ligne du dessus (fleche ->). Le glisser-deposer n'existe
+    // pas au doigt sur Android Chrome — verifie : aucun gestionnaire pointer ou
+    // touch dans le projet — donc c'est ce geste-la, ou rien, sur le telephone.
+    indentTodo(id) {
+      mutate((s) => {
+        const map = childrenByParent(s.todos)
+        const self = s.todos.find((x) => x.id === id)
+        if (!self) return s
+        const key = self.parentId && s.todos.some((x) => x.id === self.parentId) ? self.parentId : '\u0000root'
+        const siblings = map.get(key) || []
+        const i = siblings.findIndex((x) => x.id === id)
+        if (i <= 0) return s // premier de sa fratrie : rien au-dessus pour l'accueillir
+        const target = siblings[i - 1].id
+        if (!canMoveUnder(s.todos, id, target)) return s
+        return { ...s, todos: s.todos.map((x) => (x.id === id ? { ...x, parentId: target, updatedAt: stamp() } : x)) }
+      })
+    },
+
+    // Ressortir d'un niveau (fleche <-) : on devient le frere de son parent.
+    outdentTodo(id) {
+      mutate((s) => {
+        const self = s.todos.find((x) => x.id === id)
+        if (!self || !self.parentId) return s
+        const parent = s.todos.find((x) => x.id === self.parentId)
+        const next = parent ? parent.parentId || null : null
+        if (!canMoveUnder(s.todos, id, next)) return s
+        return { ...s, todos: s.todos.map((x) => (x.id === id ? { ...x, parentId: next, updatedAt: stamp() } : x)) }
+      })
+    },
+
+    // Cocher depuis le Plan. Deux differences avec toggleTodoDone :
+    //   - un sujet dont une etape reste ouverte ne se coche pas (sa case est
+    //     inerte dans la vue, et refusee ici aussi : une action du store ne se
+    //     repose jamais sur l'interface pour faire respecter sa regle) ;
+    //   - la derniere etape cochee fait basculer le sujet tout seul, en
+    //     remontant la chaine. La remontee s'arrete des qu'un ancetre ne change
+    //     pas d'etat : a 2-3 niveaux, c'est au plus deux objets ecrits.
+    togglePlanDone(id) {
+      mutate((s) => {
+        const map = childrenByParent(s.todos)
+        const self = s.todos.find((x) => x.id === id)
+        if (!self) return s
+        const kids = map.get(id) || []
+        const done = self.status !== 'done'
+        if (done && kids.length > 0 && !kids.every((k) => k.status === 'done')) return s
+
+        const patched = new Map([[id, applyDone(self, done)]])
+        for (const anc of ancestorsOf(s.todos, id)) {
+          const sibs = (map.get(anc.id) || []).map((k) => patched.get(k.id) || k)
+          const all = sibs.length > 0 && sibs.every((k) => k.status === 'done')
+          if (all === (anc.status === 'done')) break
+          patched.set(anc.id, applyDone(anc, all))
+        }
+        return { ...s, todos: s.todos.map((x) => patched.get(x.id) || x) }
+      })
+    },
+
+    // Le temps reellement passe sur CETTE tache. Propose au moment de cocher,
+    // jamais impose : une valeur absente est une information (« pas mesure »),
+    // un zero force n'en serait pas une.
+    setSpentMinutes(id, minutes) {
+      const m = Math.round(Number(minutes))
+      const value = Number.isFinite(m) && m > 0 ? m : null
+      mutate((s) => ({
+        ...s,
+        todos: s.todos.map((x) => (x.id === id && x.spentMinutes !== value ? { ...x, spentMinutes: value, updatedAt: stamp() } : x)),
+      }))
+    },
+
     // ---------- Subtasks ----------
     addSubtask(todoId, title) {
       const t = (title || '').trim()
@@ -452,6 +540,24 @@ export function createStore(initial) {
 // is checked) was removed on purpose: completing stays an explicit gesture, so
 // the « En attente d'une suite ? » flow is never bypassed and nothing closes
 // itself behind the user's back.
+// Les champs que « fait / pas fait » entraine, factorises pour que le Plan et
+// l'onglet Todos ne divergent pas en silence. Le robot d'agenda tranche ensuite :
+// creneau a venir -> evenement retire, creneau deja passe -> garde comme trace.
+function applyDone(todo, done) {
+  const reopened = done ? null : reopenSlot(todo)
+  return {
+    ...todo,
+    done,
+    status: done ? 'done' : reopened.status,
+    scheduled: done ? todo.scheduled : reopened.scheduled,
+    waiting: null,
+    focus: done ? null : todo.focus,
+    doneAt: done ? stamp() : null,
+    calendarSync: needsCalendarSync(todo) ? 'pending' : todo.calendarSync,
+    updatedAt: stamp(),
+  }
+}
+
 function reconcileParent(todo) {
   if (!todo.subtasks.length) return todo
   const allDone = todo.subtasks.every((st) => st.done)

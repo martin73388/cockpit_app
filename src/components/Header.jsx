@@ -4,6 +4,7 @@ import { IconGear } from './common/Icons.jsx'
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'todos', label: 'Todos' },
+  { id: 'plan', label: 'Plan' },
   // « Créneaux » : dans les faits ce sont des blocs de temps récurrents (sport,
   // travail, maison). La clé de données reste `habits` — le robot Apps Script
   // lit `data.habits`, la renommer casserait la synchro agenda.

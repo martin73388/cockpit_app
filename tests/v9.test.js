@@ -25,7 +25,7 @@ describe('v9 : piliers redéfinis', () => {
   it('la nouvelle liste est en place et « travail » en fait partie', () => {
     expect(PILLARS).toEqual(['travail', 'famille', 'ami', 'argent', 'sport', 'maison'])
     expect(PILLARS).toContain(WORK_PILLAR)
-    expect(SCHEMA_VERSION).toBe(8)
+    expect(SCHEMA_VERSION).toBe(9)
   })
 
   it('un ancien pilier retombe à null au lieu de rester fantôme', () => {

@@ -223,6 +223,7 @@ function canonTodo(t) {
   const scheduled = canonSlot(t.scheduled)
   if (status === 'scheduled' && !scheduled) status = 'todo'
   const estimate = Math.round(Number(t.estimateMinutes))
+  const spent = Math.round(Number(t.spentMinutes))
   const f = t.focus
   const focus =
     f && typeof f === 'object' && typeof f.date === 'string' && DATE_RE.test(f.date)
@@ -253,6 +254,13 @@ function canonTodo(t) {
     // champ d'une autre app dans un fichier partagé, c'est lui casser sa reprise.
     projectSource: typeof t.projectSource === 'string' && t.projectSource ? t.projectSource : null,
     order: Number.isFinite(Number(t.order)) ? num(t.order) : num(t.createdAt),
+    // v9 — arbre du Plan. La VALIDITE du parent (existe-t-il ? crée-t-il un
+    // cycle ?) ne peut pas se juger ici, on ne voit qu'une todo : elle est
+    // tranchee dans canonicalize, qui a la liste complete sous les yeux.
+    parentId: t.parentId == null || t.parentId === t.id ? null : String(t.parentId),
+    // v9 — temps passe. Arrondi AVANT le test de positivite : meme piege
+    // d'idempotence que durationMinutes et estimateMinutes.
+    spentMinutes: spent > 0 ? spent : null,
     subtasks: asArray(t.subtasks).filter((s) => s && s.id != null).map(canonSubtask),
     createdAt: num(t.createdAt),
     updatedAt: num(t.updatedAt),
@@ -334,6 +342,35 @@ function cmpTomb(a, b) {
   return a.at - b.at || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 }
 
+// v9 — l'arbre ne se valide qu'ici : canonTodo ne voit qu'une tache a la fois,
+// or « ce parent existe-t-il ? » et « y a-t-il un cycle ? » demandent la liste
+// entiere. Deux regles, et l'ORDRE compte :
+//   1. un parent disparu (supprime sur l'autre appareil) libere son enfant a la
+//      racine. Applique APRES le filtrage par pierres tombales : dans l'autre
+//      sens, l'enfant s'evanouirait avec son parent au lieu de remonter, et une
+//      suppression de branche detruirait le travail fait en parallele dessous.
+//   2. un cycle — A sous B pendant que B passe sous A, chaque deplacement
+//      gagnant sur son propre objet — libere TOUS ses noeuds a la racine.
+//      Brutal, mais stable : le resultat ne depend que de l'ensemble des taches,
+//      donc les deux appareils cassent le cycle exactement au meme endroit, et
+//      un second passage ne trouve plus rien a casser (idempotence).
+// Sans (2), le rendu recursif de la page Plan boucle a l'infini.
+function resolveParents(todos) {
+  const byId = new Map(todos.map((t) => [t.id, t]))
+  return todos.map((t) => {
+    if (t.parentId == null) return t
+    if (!byId.has(t.parentId)) return { ...t, parentId: null }
+    const seen = new Set([t.id])
+    let cur = byId.get(t.parentId)
+    while (cur) {
+      if (seen.has(cur.id)) return { ...t, parentId: null }
+      seen.add(cur.id)
+      cur = cur.parentId == null ? null : byId.get(cur.parentId)
+    }
+    return t
+  })
+}
+
 export function canonicalize(state) {
   const s = normalize(state)
   const tombs = mergeTombstones(s.deleted, []) // de-dupes tombstones by id
@@ -353,7 +390,7 @@ export function canonicalize(state) {
   return {
     app: APP,
     version: SCHEMA_VERSION,
-    todos: todos.map(canonTodo).sort(cmpTodo),
+    todos: resolveParents(todos.map(canonTodo)).sort(cmpTodo),
     habits: habits.map(canonHabit).sort(cmpHabit),
     inbox: inbox.map(canonInbox).sort(cmpInbox),
     deleted: deleted.map(canonTomb).sort(cmpTomb),

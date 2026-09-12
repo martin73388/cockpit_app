@@ -58,8 +58,13 @@ export function radarAlerts(radar, today = todayISO()) {
 // depuis plus de STALLED_DAYS jours.
 const STALLED_DAYS = 7
 export function stalledTodos(todos, now = Date.now()) {
+  // v9 — un noeud intermediaire du Plan n'est pas « en panne » : son avancement
+  // se joue dans ses etapes. Sans ce filtre, une branche dormante produirait une
+  // alerte par noeud au lieu d'une.
+  const parents = new Set((todos || []).map((t) => t.parentId).filter(Boolean))
   const out = []
   for (const t of todos || []) {
+    if (parents.has(t.id)) continue
     // Une tâche planifiée a justement une prochaine étape : un créneau.
     if (t.status !== 'todo') continue
     if (t.dueDate) continue

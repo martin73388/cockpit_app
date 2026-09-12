@@ -1225,3 +1225,112 @@ button.work-slot:disabled {
   border-radius: 50%;
   background: var(--danger);
 }
+
+/* ---------- v9 : page Plan ---------------------------------------------
+   Une ligne = une case, un titre, sa méta, trois petits contrôles. Rien
+   d'autre : sur 240 px, chaque élément ajouté se paie sur le titre. */
+.plan-list { list-style: none; margin: 0; padding: 0; }
+.plan-row { margin: 0; }
+.plan-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--border-soft, var(--border));
+}
+.plan-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.25;
+  /* break-word et non anywhere : « Kickmaker » ne doit pas se couper en
+     « Kickmake / r ». Un mot plus large que la colonne cède quand même. */
+  overflow-wrap: break-word;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 8px 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+/* L'échéance dépassée ne coûte pas un pixel de largeur : elle teinte le titre. */
+.plan-title.is-late { color: var(--danger); font-weight: 600; }
+
+.plan-prog,
+.plan-est,
+.plan-spent {
+  flex: none;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.plan-spent { color: var(--success); }
+.plan-est { opacity: 0.75; }
+.plan-wait { flex: none; color: var(--warning); font-size: 13px; }
+.plan-wait-note {
+  margin: 0 0 4px 28px;
+  font-size: 11.5px;
+  color: var(--warning);
+  overflow-wrap: anywhere;
+}
+
+.plan-moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 0 8px 28px;
+}
+.plan-move {
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 999px;
+}
+.plan-move:hover, .plan-move:focus-visible { color: var(--text); background: var(--surface-2, var(--surface)); }
+.plan-move.is-on { color: var(--accent, var(--success)); }
+
+.plan-add { display: flex; padding: 2px 0; }
+.plan-add input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 8px 0;
+  font-size: 14px;
+  color: var(--text);
+}
+.plan-add input::placeholder { color: var(--text-faint); }
+.plan-add input:focus { outline: none; border-bottom: 1px solid var(--accent, var(--success)); }
+
+.plan-spent-ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0 8px 28px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.plan-chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 11.5px;
+  color: var(--text);
+  cursor: pointer;
+}
+.plan-chip:hover { border-color: var(--accent, var(--success)); }
+.plan-chip.is-skip { border-style: dashed; color: var(--text-faint); }
+
+/* Une case inerte doit se LIRE comme inerte : sinon Martin tape dessus et
+   croit à un bug, alors que la règle est « finis d'abord les étapes ». */
+.plan-line .check:disabled { opacity: 0.3; cursor: not-allowed; }

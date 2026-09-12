@@ -9,6 +9,7 @@ import { fetchBrief, loadCachedBrief } from './sync/brief.js'
 import { fetchAgenda, loadCachedAgenda } from './sync/agenda.js'
 import { Header } from './components/Header.jsx'
 import { TodosView } from './components/todos/TodosView.jsx'
+import { PlanView } from './components/plan/PlanView.jsx'
 import { HabitsView } from './components/habits/HabitsView.jsx'
 import { DashboardView } from './components/dashboard/DashboardView.jsx'
 import { SettingsView } from './components/settings/SettingsView.jsx'
@@ -119,6 +120,7 @@ export default function App() {
       <main className="container">
         {tab === 'dashboard' && <DashboardView sources={sources} brief={brief} agenda={agenda} />}
         {tab === 'todos' && <TodosView projects={projects} ui={ui} onUi={updateUi} />}
+        {tab === 'plan' && <PlanView />}
         {tab === 'habits' && <HabitsView />}
         {tab === 'settings' && (
           <SettingsView

@@ -28,13 +28,21 @@ function carnetTodo(patch = {}) {
   }
 }
 
-// Carnet borne la version qu'il accepte pour ÉCRIRE dans cockpit-data.json.
-// Ce test est le rappel : toucher ce nombre oblige à prévenir Carnet, sans quoi
-// son bouton « créer une tâche depuis un projet » cesse de fonctionner.
+// Ce test est un rappel, pas une interdiction : changer ce nombre oblige à
+// aller relire ce que Carnet en fait.
+//
+// Vérifié dans carnet_core (src/carnet-src.html, createCockpitTodo) le 12/09 :
+// Carnet n'impose AUCUN plafond de version sur cockpit-data.json. Son écriture
+// est un ajout pur — `doc.todos = doc.todos.concat([todo])` — il ne réécrit ni
+// ne fusionne l'existant, donc un schéma Cockpit plus récent ne peut rien
+// rétrograder. Son seul garde-fou est structurel : app === 'cockpit' + todos[].
+// Le plafond strict, lui, est sur carnet-data.json, où une vraie fusion a lieu.
+// (Le commentaire précédent affirmait l'inverse ; il datait d'une version de
+// Carnet qui avait depuis retiré ce plafond.)
 describe('interop Carnet : version du fichier partagé', () => {
   it('version courante de cockpit-data.json', () => {
-    expect(SCHEMA_VERSION).toBe(8)
-    expect(canonicalize(state()).version).toBe(8)
+    expect(SCHEMA_VERSION).toBe(9)
+    expect(canonicalize(state()).version).toBe(9)
   })
 })
 
