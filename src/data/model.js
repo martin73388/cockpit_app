@@ -41,6 +41,16 @@ export const SPENT_CHOICES = [5, 15, 30, 60, 120, 240]
 // chiffre est alors une convention, pas une mesure, et l'interface le dit.
 export const TIMER_CAP_MINUTES = 240
 
+// v9 — rang de 1 (le plus prioritaire) à 5. null = non classée, traitée comme
+// un 3 au tri : marquer une tâche 1 la fait monter, 5 la fait descendre, et
+// tout ce qu'on n'a pas touché reste au milieu sans bouger.
+export const RANKS = [1, 2, 3, 4, 5]
+export const NEUTRAL_RANK = 3
+// L'ancien champ `priority` reste la vérité pour l'onglet Todos, le brief du
+// matin et le Carnet. Il est DÉRIVÉ du rang plutôt que saisi deux fois : deux
+// champs à tenir d'accord finissent toujours par diverger.
+export const RANK_TO_PRIORITY = { 1: 'haute', 2: 'haute', 3: 'normale', 4: 'basse', 5: 'basse' }
+
 export const SORTS = ['manual', 'due', 'priority', 'created']
 export const SORT_LABEL = { manual: 'Manuel', due: 'Échéance', priority: 'Priorité', created: 'Création' }
 
@@ -97,6 +107,7 @@ export function newTodo(patch = {}) {
     calendarSync: 'off', // 'off' | 'pending' | 'synced' — l'app demande, le robot exécute
     focus: null, // { date("YYYY-MM-DD"), count } — épinglée au plan du jour ; count = reports
     priority: 'normale',
+    rank: null, // v9 — 1..5, null = non classée
     dueDate: '',
     projectId: null,
     projectSource: null, // 'carnet' quand la tâche a été créée depuis Carnet (écrit par lui)

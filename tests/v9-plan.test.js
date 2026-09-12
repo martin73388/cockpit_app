@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { canonicalize, mergeStates, serialize } from '../src/sync/merge.js'
 import { newTodo, APP, SCHEMA_VERSION, TIMER_CAP_MINUTES } from '../src/data/model.js'
 import { createStore } from '../src/data/store.js'
-import { childrenByParent, rootsOf, subtreeIds, ancestorsOf, progressOf, canCheck, spentOf, formatSpent, canMoveUnder } from '../src/utils/tree.js'
+import { childrenByParent, rootsOf, subtreeIds, ancestorsOf, effectiveRanks, reorderNeighbour, progressOf, canCheck, spentOf, formatSpent, canMoveUnder } from '../src/utils/tree.js'
 import { visibleTodos } from '../src/utils/todoView.js'
 import { stalledTodos } from '../src/utils/alerts.js'
 
@@ -391,5 +391,136 @@ describe('v9 : le chrono', () => {
   it('un timerStart aberrant est ignoré', () => {
     const c = canonicalize(state({ todos: [T('a', { timerStart: -1 }), T('b', { timerStart: 'nawak' })] })).todos
     expect(c.every((t) => t.timerStart === null)).toBe(true)
+  })
+})
+
+describe('v9 : la priorité 1 à 5', () => {
+  it('une tâche naît sans rang', () => {
+    expect(newTodo().rank).toBe(null)
+  })
+
+  it('le rang pilote la priorité que lisent Todos, le brief et Carnet', () => {
+    const c = canonicalize(state({
+      todos: [T('a', { rank: 1 }), T('b', { rank: 2 }), T('c', { rank: 3 }), T('d', { rank: 4 }), T('e', { rank: 5 })],
+    })).todos
+    const prio = Object.fromEntries(c.map((t) => [t.id, t.priority]))
+    expect(prio).toEqual({ a: 'haute', b: 'haute', c: 'normale', d: 'basse', e: 'basse' })
+  })
+
+  it('sans rang, la priorité saisie ailleurs est respectée', () => {
+    const c = canonicalize(state({ todos: [T('a', { priority: 'haute' })] })).todos[0]
+    expect(c.rank).toBe(null)
+    expect(c.priority).toBe('haute')
+  })
+
+  it('un rang hors bornes est ignoré, et la canonicalisation reste idempotente', () => {
+    const once = canonicalize(state({ todos: [T('a', { rank: 0 }), T('b', { rank: 9 }), T('c', { rank: 'x' }), T('d', { rank: 2.4 })] }))
+    const by = Object.fromEntries(once.todos.map((t) => [t.id, t.rank]))
+    expect(by).toEqual({ a: null, b: null, c: null, d: 2 })
+    expect(canonicalize(once)).toEqual(once)
+  })
+
+  it('changer la priorité depuis l’onglet Todos libère le rang', () => {
+    // Sans ça, la projection réécrirait la priorité au prochain enregistrement
+    // et le geste fait dans l'autre écran disparaîtrait en silence.
+    const s = createStore(state())
+    const a = s.addTodo('A')
+    s.setRank(a, 1)
+    s.updateTodo(a, { priority: 'basse' })
+    const t = s.getSnapshot().todos.find((x) => x.id === a)
+    expect(t.rank).toBe(null)
+    expect(canonicalize(s.getSnapshot()).todos[0].priority).toBe('basse')
+  })
+})
+
+describe('v9 : un sujet porte la priorité de ses étapes', () => {
+  const eff = (todos) => effectiveRanks(todos, childrenByParent(todos))
+
+  it('le parent prend la note la plus prioritaire de ses enfants', () => {
+    const todos = [T('p'), T('a', { parentId: 'p', rank: 4 }), T('b', { parentId: 'p', rank: 2 })]
+    expect(eff(todos).get('p')).toBe(2)
+  })
+
+  it('elle remonte sur plusieurs niveaux', () => {
+    const todos = [T('p'), T('m', { parentId: 'p' }), T('f', { parentId: 'm', rank: 1 })]
+    expect(eff(todos).get('p')).toBe(1)
+  })
+
+  it('le rang propre du sujet compte aussi : marqué 1, il le reste', () => {
+    const todos = [T('p', { rank: 1 }), T('a', { parentId: 'p', rank: 5 })]
+    expect(eff(todos).get('p')).toBe(1)
+  })
+
+  it('un sujet sans rien de classé n’a pas de rang', () => {
+    expect(eff([T('p'), T('a', { parentId: 'p' })]).get('p')).toBe(null)
+  })
+
+  it('un cycle résiduel ne fait pas boucler le calcul', () => {
+    const cyc = [T('u', { parentId: 'v', rank: 2 }), T('v', { parentId: 'u' })]
+    expect(() => eff(cyc)).not.toThrow()
+  })
+
+  it('un sujet anodin contenant une urgence remonte en tête', () => {
+    const todos = [
+      T('calme', { order: 1000 }),
+      T('gros', { order: 2000 }),
+      T('urgence', { parentId: 'gros', rank: 1 }),
+    ]
+    expect(ids(rootsOf(todos))).toEqual(['gros', 'calme'])
+  })
+
+  it('une tâche non classée reste au milieu : un 1 la double, un 5 passe derrière', () => {
+    const todos = [T('neutre', { order: 2000 }), T('urgente', { order: 3000, rank: 1 }), T('molle', { order: 1000, rank: 5 })]
+    expect(ids(rootsOf(todos))).toEqual(['urgente', 'neutre', 'molle'])
+  })
+})
+
+describe('v9 : réordonner à priorité égale', () => {
+  let s
+  beforeEach(() => {
+    s = createStore(state())
+  })
+  const rootIds = () => ids(rootsOf(s.getSnapshot().todos))
+
+  it('↑ échange la place avec le voisin du dessus', () => {
+    const a = s.addTodo('A')
+    const b = s.addTodo('B')
+    expect(rootIds()).toEqual([a, b])
+    s.moveWithinSiblings(b, -1)
+    expect(rootIds()).toEqual([b, a])
+  })
+
+  it('↓ fait l’inverse', () => {
+    const a = s.addTodo('A')
+    s.addTodo('B')
+    s.moveWithinSiblings(a, 1)
+    expect(rootIds()[0]).not.toBe(a)
+  })
+
+  it('en bout de liste, rien ne bouge', () => {
+    const a = s.addTodo('A')
+    const b = s.addTodo('B')
+    s.moveWithinSiblings(a, -1)
+    s.moveWithinSiblings(b, 1)
+    expect(rootIds()).toEqual([a, b])
+  })
+
+  it('on ne double pas une tâche plus prioritaire — le tri l’annulerait aussitôt', () => {
+    const a = s.addTodo('A')
+    const b = s.addTodo('B')
+    s.setRank(a, 1)
+    expect(reorderNeighbour(s.getSnapshot().todos, b, -1)).toBe(null)
+    s.moveWithinSiblings(b, -1)
+    expect(rootIds()).toEqual([a, b])
+  })
+
+  it('le réordonnancement reste dans la fratrie, il ne change pas de parent', () => {
+    const p = s.addTodo('P')
+    const x = s.addChildTodo(p, 'x')
+    const y = s.addChildTodo(p, 'y')
+    s.moveWithinSiblings(y, -1)
+    const snap = s.getSnapshot().todos
+    expect(ids(childrenByParent(snap).get(p))).toEqual([y, x])
+    expect(snap.find((t) => t.id === y).parentId).toBe(p)
   })
 })

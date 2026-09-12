@@ -7,7 +7,7 @@
 //   merge) updates the UI WITHOUT scheduling another push — avoids feedback loops.
 import { stamp, observe } from './clock.js'
 import { todayISO } from '../utils/dates.js'
-import { childrenByParent, ancestorsOf, canMoveUnder } from '../utils/tree.js'
+import { childrenByParent, ancestorsOf, canMoveUnder, reorderNeighbour, ROOT } from '../utils/tree.js'
 import { emptyState, newTodo, newSubtask, newHabit, newInboxItem, tombstone, TIMER_CAP_MINUTES } from './model.js'
 import { canonicalize, stableStringify } from '../sync/merge.js'
 import { KEYS, load, save } from './persist.js'
@@ -75,9 +75,24 @@ export function createStore(initial) {
       return todo.id
     },
     updateTodo(id, patch) {
+      // v9 — `priority` est la projection du rang. Si l'onglet Todos la change
+      // a la main sans toucher au rang, la projection l'ecraserait au prochain
+      // enregistrement, en silence. Poser une priorite libere donc le rang :
+      // le dernier geste fait foi, quel que soit l'ecran d'ou il vient.
+      const p = patch.priority != null && patch.rank === undefined ? { ...patch, rank: null } : patch
       mutate((s) => ({
         ...s,
-        todos: s.todos.map((x) => (x.id === id ? { ...x, ...patch, updatedAt: stamp() } : x)),
+        todos: s.todos.map((x) => (x.id === id ? { ...x, ...p, updatedAt: stamp() } : x)),
+      }))
+    },
+
+    // Classer une tache de 1 (le plus prioritaire) a 5. null = declassee.
+    setRank(id, rank) {
+      const r = Math.round(Number(rank))
+      const value = Number.isFinite(r) && r >= 1 && r <= 5 ? r : null
+      mutate((s) => ({
+        ...s,
+        todos: s.todos.map((x) => (x.id === id && x.rank !== value ? { ...x, rank: value, updatedAt: stamp() } : x)),
       }))
     },
     toggleTodoDone(id) {
@@ -303,7 +318,7 @@ export function createStore(initial) {
         const map = childrenByParent(s.todos)
         const self = s.todos.find((x) => x.id === id)
         if (!self) return s
-        const key = self.parentId && s.todos.some((x) => x.id === self.parentId) ? self.parentId : '\u0000root'
+        const key = self.parentId && s.todos.some((x) => x.id === self.parentId) ? self.parentId : ROOT
         const siblings = map.get(key) || []
         const i = siblings.findIndex((x) => x.id === id)
         if (i <= 0) return s // premier de sa fratrie : rien au-dessus pour l'accueillir
@@ -322,6 +337,31 @@ export function createStore(initial) {
         const next = parent ? parent.parentId || null : null
         if (!canMoveUnder(s.todos, id, next)) return s
         return { ...s, todos: s.todos.map((x) => (x.id === id ? { ...x, parentId: next, updatedAt: stamp() } : x)) }
+      })
+    },
+
+    // Monter / descendre une tache DANS SA FRATRIE, a rang egal.
+    // On echange les `order` : deux objets ecrits, et rien d'autre ne bouge.
+    // A rang different, le tri redescendrait la tache aussitot — le geste est
+    // donc refuse ici, et le bouton desactive dans la vue.
+    moveWithinSiblings(id, dir) {
+      mutate((s) => {
+        const other = reorderNeighbour(s.todos, id, dir)
+        if (!other) return s
+        const self = s.todos.find((x) => x.id === id)
+        const a = Number(self.order) || 0
+        const b = Number(other.order) || 0
+        // Ordres identiques (creees dans la meme milliseconde) : l'echange ne
+        // ferait rien. On decale d'un cran plutot que de ne pas reagir.
+        const [na, nb] = a === b ? [dir < 0 ? b - 1 : b + 1, b] : [b, a]
+        return {
+          ...s,
+          todos: s.todos.map((x) => {
+            if (x.id === id) return { ...x, order: na, updatedAt: stamp() }
+            if (x.id === other.id) return { ...x, order: nb, updatedAt: stamp() }
+            return x
+          }),
+        }
       })
     },
 

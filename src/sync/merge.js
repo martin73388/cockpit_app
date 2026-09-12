@@ -19,7 +19,7 @@
 // mergeStates is commutative and idempotent:
 //   mergeStates(a, b) deep-equals mergeStates(b, a)
 //   mergeStates(a, a) deep-equals canonicalize(a)
-import { APP, SCHEMA_VERSION, DAYS, PRIORITIES, PILLARS } from '../data/model.js'
+import { APP, SCHEMA_VERSION, DAYS, PRIORITIES, PILLARS, RANK_TO_PRIORITY } from '../data/model.js'
 
 export function isCockpitFile(obj) {
   return !!obj && obj.app === APP && Array.isArray(obj.todos) && Array.isArray(obj.habits)
@@ -203,7 +203,13 @@ function canonSlot(s) {
 }
 
 function canonTodo(t) {
-  const priority = PRIORITIES.includes(t.priority) ? t.priority : 'normale'
+  // v9 — le rang 1..5 est la source, `priority` en est la projection. Les deux
+  // ne peuvent donc pas diverger. Sur une tache jamais classee (rank null) on
+  // garde la priorite telle quelle : l'onglet Todos continue de la piloter.
+  const r = Math.round(Number(t.rank))
+  const rank = Number.isFinite(r) && r >= 1 && r <= 5 ? r : null
+  const stored = PRIORITIES.includes(t.priority) ? t.priority : 'normale'
+  const priority = rank == null ? stored : RANK_TO_PRIORITY[rank]
   // v3 : status ('todo'|'waiting'|'done'), v5 ajoute 'scheduled'. Migration v2 :
   // dérivé de done. `done` reste émis et synchronisé pour tout lecteur externe.
   let status = ['todo', 'waiting', 'scheduled', 'done'].includes(t.status) ? t.status : (t.done ? 'done' : 'todo')
@@ -247,6 +253,7 @@ function canonTodo(t) {
     calendarSync: ['pending', 'synced', 'off'].includes(t.calendarSync) ? t.calendarSync : 'off',
     focus,
     priority,
+    rank,
     dueDate: typeof t.dueDate === 'string' ? t.dueDate : '',
     projectId: t.projectId == null ? null : String(t.projectId),
     // Écrit par Carnet quand il crée une tâche depuis une fiche projet. Cockpit

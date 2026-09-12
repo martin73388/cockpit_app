@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { store } from '../../data/store.js'
 import { useStore } from '../../hooks/useStore.js'
-import { SPENT_CHOICES, TIMER_CAP_MINUTES } from '../../data/model.js'
+import { SPENT_CHOICES, TIMER_CAP_MINUTES, RANKS } from '../../data/model.js'
 import { isOverdue } from '../../utils/dates.js'
-import { childrenByParent, ancestorsOf, progressOf, canCheck, spentOf, formatSpent } from '../../utils/tree.js'
+import { childrenByParent, ancestorsOf, effectiveRanks, reorderNeighbour, progressOf, canCheck, spentOf, formatSpent, ROOT } from '../../utils/tree.js'
 
 // Page Plan — les tâches en arbre, et rien d'autre.
 //
@@ -20,7 +20,7 @@ import { childrenByParent, ancestorsOf, progressOf, canCheck, spentOf, formatSpe
 const INDENT = 14
 const MAX_INDENT = 4
 
-function Row({ node, todos, onAsk, ask, onSpent, onAddUnder, addingHere, active, onActivate, now, onStart, onStop }) {
+function Row({ node, todos, eff, onAsk, ask, onSpent, onAddUnder, addingHere, active, onActivate, now, onStart, onStop }) {
   const { todo, depth, children } = node
   const open = children.filter((c) => c.status !== 'done')
   const prog = progressOf(children)
@@ -29,6 +29,9 @@ function Row({ node, todos, onAsk, ask, onSpent, onAddUnder, addingHere, active,
   const late = isOverdue(todo)
   const name = todo.title || 'Sans titre'
   const running = todo.timerStart ? Math.round((now - todo.timerStart) / 60000) : 0
+  const rank = eff.get(todo.id) || null
+  const canUp = !!reorderNeighbour(todos, todo.id, -1)
+  const canDown = !!reorderNeighbour(todos, todo.id, 1)
 
   return (
     <>
@@ -56,6 +59,18 @@ function Row({ node, todos, onAsk, ask, onSpent, onAddUnder, addingHere, active,
           {name}
         </button>
 
+        {/* Le rang affiché est l'EFFECTIF : un sujet porte la note la plus
+            prioritaire de ses étapes, sinon une urgence enterrée ne se verrait
+            nulle part. Seuls 1 et 2 crient ; au-delà tout serait coloré et
+            plus rien ne ressortirait. */}
+        {rank ? (
+          <span
+            className={`plan-rank r${rank}${todo.rank ? '' : ' is-inherited'}`}
+            title={todo.rank ? `Priorité ${rank}` : `Priorité ${rank}, héritée d’une étape`}
+          >
+            {rank}
+          </span>
+        ) : null}
         {prog.total > 0 && (
           <span className="plan-prog" title={`${prog.done} étape(s) faite(s) sur ${prog.total}`}>
             {prog.done}/{prog.total}
@@ -97,9 +112,31 @@ function Row({ node, todos, onAsk, ask, onSpent, onAddUnder, addingHere, active,
       </div>
 
       {active && (
+        <div className="plan-ranks" role="group" aria-label={`Priorité : ${name}`}>
+          <span className="plan-ranks-lbl">Priorité</span>
+          {RANKS.map((r) => (
+            <button
+              key={r}
+              type="button"
+              className={`plan-rankbtn r${r}${todo.rank === r ? ' is-on' : ''}`}
+              onClick={() => store.setRank(todo.id, todo.rank === r ? null : r)}
+              aria-pressed={todo.rank === r}
+              aria-label={`Priorité ${r}${r === 1 ? ' (la plus urgente)' : ''} : ${name}`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {active && (
         <div className="plan-moves" role="group" aria-label={`Actions : ${name}`}>
-          <button type="button" className="plan-move" onClick={() => store.outdentTodo(todo.id)} aria-label={`Ressortir d’un niveau : ${name}`}>← ressortir</button>
-          <button type="button" className="plan-move" onClick={() => store.indentTodo(todo.id)} aria-label={`Ranger sous la tâche du dessus : ${name}`}>→ ranger dessous</button>
+          <span className="plan-arrows">
+            <button type="button" className="plan-arrow" onClick={() => store.outdentTodo(todo.id)} aria-label={`Ressortir d’un niveau : ${name}`} title="Ressortir d’un niveau">←</button>
+            <button type="button" className="plan-arrow" onClick={() => store.indentTodo(todo.id)} aria-label={`Ranger sous la tâche du dessus : ${name}`} title="Ranger sous la tâche du dessus">→</button>
+            <button type="button" className="plan-arrow" onClick={() => store.moveWithinSiblings(todo.id, -1)} disabled={!canUp} aria-label={`Monter : ${name}`} title={canUp ? 'Monter' : 'Rien à égalité au-dessus'}>↑</button>
+            <button type="button" className="plan-arrow" onClick={() => store.moveWithinSiblings(todo.id, 1)} disabled={!canDown} aria-label={`Descendre : ${name}`} title={canDown ? 'Descendre' : 'Rien à égalité en dessous'}>↓</button>
+          </span>
           {/* Sans ce +, une tache sans etape ne pourrait jamais en recevoir —
               or decouper un sujet est le geste central de la page. */}
           <button
@@ -181,8 +218,8 @@ function AddLine({ parentId, label }) {
   )
 }
 
-function Group({ parentId, depth, byParent, todos, onAsk, ask, onSpent, addUnder, onAddUnder, activeId, onActivate, now, onStart, onStop }) {
-  const children = byParent.get(parentId || '\u0000root') || []
+function Group({ parentId, depth, byParent, todos, eff, onAsk, ask, onSpent, addUnder, onAddUnder, activeId, onActivate, now, onStart, onStop }) {
+  const children = byParent.get(parentId || ROOT) || []
   // `byParent` est déjà bâti sur les tâches vivantes + celle en attente de
   // réponse : on n'a rien à refiltrer ici, sinon la question disparaîtrait.
   const open = children
@@ -194,6 +231,7 @@ function Group({ parentId, depth, byParent, todos, onAsk, ask, onSpent, addUnder
           <Row
             node={{ todo, depth, children: byParent.get(todo.id) || [] }}
             todos={todos}
+            eff={eff}
             onAsk={onAsk}
             ask={ask}
             onSpent={onSpent}
@@ -215,6 +253,7 @@ function Group({ parentId, depth, byParent, todos, onAsk, ask, onSpent, addUnder
             depth={depth + 1}
             byParent={byParent}
             todos={todos}
+            eff={eff}
             onAsk={onAsk}
             ask={ask}
             onSpent={onSpent}
@@ -268,6 +307,7 @@ export function PlanView() {
   }
   const live = todos.filter((t) => t.status !== 'done' || keep.has(t.id))
   const byParent = childrenByParent(live)
+  const eff = effectiveRanks(live, byParent)
 
   // Cocher : on bascule d'abord, on demande le temps ensuite — et seulement si
   // Martin avait estimé la tâche. Sur les autres, la question serait un péage
@@ -302,7 +342,8 @@ export function PlanView() {
         parentId={null}
         depth={0}
         byParent={byParent}
-        todos={todos}
+        todos={live}
+        eff={eff}
         onAsk={onAsk}
         ask={ask}
         onSpent={setSpent}

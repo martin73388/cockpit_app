@@ -1353,3 +1353,65 @@ button.work-slot:disabled {
 .plan-run.is-over { border-color: var(--warning); color: var(--warning); }
 .plan-chip.is-primary { border-color: var(--success); color: var(--success); font-weight: 600; }
 .plan-ask-sep { opacity: 0.6; }
+
+/* Priorité 1..5 — seuls 1 et 2 crient. Au-delà, tout serait coloré et plus
+   rien ne ressortirait. */
+.plan-rank {
+  flex: none;
+  min-width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: var(--text-faint);
+}
+.plan-rank.r1 { background: var(--danger); }
+.plan-rank.r2 { background: var(--warning); color: #3a2a00; }
+.plan-rank.r3 { background: transparent; color: var(--text-muted); font-weight: 600; }
+.plan-rank.r4,
+.plan-rank.r5 { background: transparent; color: var(--text-faint); font-weight: 600; }
+/* Héritée d'une étape : c'est une information, pas une décision de Martin. */
+.plan-rank.is-inherited { opacity: 0.62; }
+
+.plan-ranks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0 2px 28px;
+}
+.plan-ranks-lbl { font-size: 11px; color: var(--text-muted); margin-right: 2px; }
+.plan-rankbtn {
+  width: 28px;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.plan-rankbtn.r1.is-on { background: var(--danger); border-color: var(--danger); color: #fff; }
+.plan-rankbtn.r2.is-on { background: var(--warning); border-color: var(--warning); color: #3a2a00; }
+.plan-rankbtn.is-on { background: var(--text-muted); border-color: var(--text-muted); color: var(--surface); }
+.plan-move:disabled { opacity: 0.32; cursor: not-allowed; }
+
+/* Les quatre déplacements en une seule rangée : « ← ressortir » et
+   « → ranger dessous » en toutes lettres occupaient trois rangées à 240 px. */
+.plan-arrows { display: flex; gap: 3px; }
+.plan-arrow {
+  width: 34px;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.plan-arrow:disabled { opacity: 0.32; cursor: not-allowed; }
