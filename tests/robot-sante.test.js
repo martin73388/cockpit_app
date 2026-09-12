@@ -69,6 +69,14 @@ function makeEnv(spec, props = {}) {
     DriveApp: drive.api,
     MailApp: { sendEmail: (to, subject, body) => store.mails.push({ to, subject, body }) },
     Session: { getEffectiveUser: () => ({ getEmail: () => 'moi@exemple.fr' }) },
+    // santeCheck() lit l'horloge. Sans la figer, les données du test (datées du
+    // 31/08) vieillissent pendant que le test, lui, ne bouge pas : douze jours
+    // plus tard agenda.json paraît périmé et le gardien alerte là où le test
+    // attend le silence. L'heure fait partie des données du test, pas du décor.
+    Date: class extends Date {
+      constructor(...a) { super(...(a.length ? a : [NOW])) }
+      static now() { return NOW }
+    },
   }
   vm.createContext(sandbox)
   vm.runInContext(SRC, sandbox)
