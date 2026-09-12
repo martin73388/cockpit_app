@@ -427,6 +427,36 @@ export function createStore(initial) {
       return added
     },
 
+    // « Je ne peux pas la valider completement. »
+    //
+    // Deux situations, une seule mecanique : on a envoye le mail et on attend
+    // la validation ; ou on decouvre en la faisant qu'il manquait une etape.
+    // Dans les deux cas la tache N'EST PAS finie — la coche est donc annulee,
+    // et ce qui reste devient une ETAPE de cette tache. Elle se cochera toute
+    // seule quand l'etape tombera : c'est la regle qui existe deja, on ne fait
+    // que l'atteindre par un autre chemin.
+    //
+    // Un seul `mutate` : sans ca, l'etat intermediaire serait « tache faite
+    // AVEC une etape ouverte », que le reste du code tient pour impossible.
+    splitTodo(id, title) {
+      const t = (title || '').trim()
+      if (!t) return null
+      let created = null
+      mutate((s) => {
+        const src = s.todos.find((x) => x.id === id)
+        if (!src) return s
+        created = newTodo({ title: t, parentId: id })
+        const patched = new Map([[id, src.status === 'done' ? applyDone(src, false) : src]])
+        // Les ancetres avaient pu basculer avec elle : ils se rouvrent aussi.
+        for (const anc of ancestorsOf(s.todos, id)) {
+          if (anc.status !== 'done') break
+          patched.set(anc.id, applyDone(anc, false))
+        }
+        return { ...s, todos: [...s.todos.map((x) => patched.get(x.id) || x), created] }
+      })
+      return created ? created.id : null
+    },
+
     // Le temps qu'on PREVOIT d'y passer. C'est lui qui declenche la question
     // du temps reel a la coche : sans estimation, Cockpit ne demande rien.
     setEstimate(id, minutes) {

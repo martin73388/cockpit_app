@@ -1415,3 +1415,41 @@ button.work-slot:disabled {
   cursor: pointer;
 }
 .plan-arrow:disabled { opacity: 0.32; cursor: not-allowed; }
+
+/* Séparation des urgentes — à la racine seulement. Le tri seul ne le dit pas
+   assez fort : une urgence et une broutille se lisent dans la même colonne. */
+.plan-sep {
+  list-style: none;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 10px 0 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+.plan-sep.is-urgent { color: var(--danger); border-bottom-color: var(--danger); padding-top: 2px; }
+
+/* « Et après ? » — les deux boutons n'apparaissent qu'une fois le champ rempli :
+   à vide ils n'ont rien à créer, et ils encombreraient chaque validation. */
+.plan-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0 6px 28px;
+}
+.plan-next input {
+  flex: 1 1 100%;
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  padding: 7px 0;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.plan-next input::placeholder { color: var(--text-faint); }
+.plan-next input:focus { outline: none; border-bottom-color: var(--accent, var(--success)); }
+.plan-next-btns { display: flex; gap: 4px; }

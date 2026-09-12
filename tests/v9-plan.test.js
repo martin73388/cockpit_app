@@ -563,3 +563,91 @@ describe('v9 : l’estimation, réglable depuis le Plan', () => {
     expect(find(a).estimateMinutes).toBeGreaterThan(0)
   })
 })
+
+describe('v9 : « je ne peux pas la valider complètement »', () => {
+  let s
+  beforeEach(() => {
+    s = createStore(state())
+  })
+  const find = (id) => s.getSnapshot().todos.find((t) => t.id === id)
+  const kidsOf = (id) => childrenByParent(s.getSnapshot().todos).get(id) || []
+
+  it('la coche est annulée : la tâche n’est pas finie', () => {
+    const a = s.addTodo('Envoyer le devis')
+    s.togglePlanDone(a)
+    expect(find(a).status).toBe('done')
+    s.splitTodo(a, 'Attendre la validation de Berger')
+    expect(find(a).status).toBe('todo')
+    expect(find(a).doneAt).toBe(null)
+  })
+
+  it('ce qui reste devient une ÉTAPE de la tâche', () => {
+    const a = s.addTodo('Envoyer le devis')
+    s.togglePlanDone(a)
+    const r = s.splitTodo(a, 'Attendre la validation')
+    expect(find(r).parentId).toBe(a)
+    expect(ids(kidsOf(a))).toEqual([r])
+    expect(find(r).status).toBe('todo')
+  })
+
+  it('la tâche se referme toute seule quand l’étape tombe', () => {
+    // C'est la règle qui existait déjà : on ne fait que l'atteindre autrement.
+    const a = s.addTodo('Envoyer le devis')
+    s.togglePlanDone(a)
+    const r = s.splitTodo(a, 'Attendre la validation')
+    expect(canCheck(find(a), kidsOf(a))).toBe(false)
+    s.togglePlanDone(r)
+    expect(find(a).status).toBe('done')
+  })
+
+  it('les ancêtres qui avaient basculé avec elle se rouvrent aussi', () => {
+    const p = s.addTodo('Le sujet')
+    const e = s.addChildTodo(p, 'La seule étape')
+    s.togglePlanDone(e)
+    expect(find(p).status).toBe('done') // le sujet a suivi
+    s.splitTodo(e, 'En fait il restait ça')
+    expect(find(e).status).toBe('todo')
+    expect(find(p).status).toBe('todo') // et il se rouvre
+  })
+
+  it('le temps déjà mesuré n’est pas perdu en rouvrant', () => {
+    const a = s.addTodo('Envoyer le devis')
+    s.setSpentMinutes(a, 25)
+    s.togglePlanDone(a)
+    s.splitTodo(a, 'Attendre la validation')
+    expect(find(a).spentMinutes).toBe(25)
+  })
+
+  it('un titre vide ne fait rien', () => {
+    const a = s.addTodo('A')
+    s.togglePlanDone(a)
+    expect(s.splitTodo(a, '   ')).toBe(null)
+    expect(find(a).status).toBe('done')
+  })
+
+  it('elle marche aussi sur une tâche jamais cochée', () => {
+    // Rien n'oblige à passer par la coche : découper reste découper.
+    const a = s.addTodo('A')
+    const r = s.splitTodo(a, 'une étape')
+    expect(find(a).status).toBe('todo')
+    expect(find(r).parentId).toBe(a)
+  })
+})
+
+describe('v9 : la séparation des urgentes', () => {
+  const eff = (todos) => effectiveRanks(todos, childrenByParent(todos))
+
+  it('les prio 1 sont bien en tête, les autres derrière', () => {
+    const todos = [T('a', { order: 1000 }), T('urg', { order: 3000, rank: 1 }), T('b', { order: 2000 })]
+    const sorted = rootsOf(todos)
+    expect(sorted[0].id).toBe('urg')
+    expect(eff(todos).get('urg')).toBe(1)
+    expect(sorted.filter((t) => (eff(todos).get(t.id) || 0) === 1)).toHaveLength(1)
+  })
+
+  it('un sujet dont une étape est en prio 1 compte comme urgent', () => {
+    const todos = [T('calme'), T('sujet'), T('etape', { parentId: 'sujet', rank: 1 })]
+    expect(eff(todos).get('sujet')).toBe(1)
+    expect(rootsOf(todos)[0].id).toBe('sujet')
+  })
+})

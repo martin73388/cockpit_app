@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, Fragment } from 'react'
 import { store } from '../../data/store.js'
 import { useStore } from '../../hooks/useStore.js'
 import { SPENT_CHOICES, ESTIMATE_CHOICES, TIMER_CAP_MINUTES, RANKS } from '../../data/model.js'
@@ -20,7 +20,7 @@ import { childrenByParent, ancestorsOf, effectiveRanks, reorderNeighbour, progre
 const INDENT = 14
 const MAX_INDENT = 4
 
-function Row({ node, todos, eff, onAsk, ask, onSpent, onAddUnder, addingHere, active, onActivate, now, onStart, onStop }) {
+function Row({ node, todos, eff, onAsk, ask, onSpent, onCleared, onAddUnder, addingHere, active, onActivate, now, onStart, onStop }) {
   const { todo, depth, children } = node
   const open = children.filter((c) => c.status !== 'done')
   const prog = progressOf(children)
@@ -207,7 +207,47 @@ function Row({ node, todos, eff, onAsk, ask, onSpent, onAddUnder, addingHere, ac
           )}
         </div>
       )}
+
+      {ask && ask.id === todo.id && <Remaining id={todo.id} name={name} onDone={onCleared} />}
     </>
+  )
+}
+
+// « Il reste quelque chose ? » — proposé à chaque validation.
+//
+// Deux situations, relevées par Martin, qui n'en font qu'une : « j'ai envoyé le
+// mail, j'attends la validation », et « en la faisant je vois qu'il manquait
+// une étape ». Dans les deux cas la tâche N'EST PAS finie.
+//
+// Remplir ce champ annule donc la coche : ce qu'on écrit devient une étape DE
+// la tâche, qui se cochera toute seule quand l'étape tombera. Laisser le champ
+// vide vaut « c'est bien fini » — ne rien faire est la sortie par défaut, et
+// c'est ce qui permet de poser la question à CHAQUE validation sans lasser.
+function Remaining({ id, name, onDone }) {
+  const [value, setValue] = useState('')
+  const vide = !value.trim()
+  function submit(e) {
+    e.preventDefault()
+    if (vide) return
+    store.splitTodo(id, value.trim())
+    setValue('')
+    onDone()
+  }
+  return (
+    <form className="plan-next" onSubmit={submit}>
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Il reste quelque chose ?"
+        aria-label={`Ce qui reste à faire sur : ${name}`}
+        enterKeyHint="done"
+      />
+      {!vide && (
+        <button type="submit" className="plan-chip is-primary" aria-label={`Rouvrir ${name} avec cette étape`}>
+          ça reste à faire
+        </button>
+      )}
+    </form>
   )
 }
 
@@ -236,54 +276,75 @@ function AddLine({ parentId, label }) {
   )
 }
 
-function Group({ parentId, depth, byParent, todos, eff, onAsk, ask, onSpent, addUnder, onAddUnder, activeId, onActivate, now, onStart, onStop }) {
-  const children = byParent.get(parentId || ROOT) || []
+function Group({ parentId, depth, byParent, todos, eff, onAsk, ask, onSpent, onCleared, addUnder, onAddUnder, activeId, onActivate, now, onStart, onStop }) {
+  const open = byParent.get(parentId || ROOT) || []
   // `byParent` est déjà bâti sur les tâches vivantes + celle en attente de
   // réponse : on n'a rien à refiltrer ici, sinon la question disparaîtrait.
-  const open = children
   if (depth > 0 && open.length === 0) return null
+
+  // À la racine, les prio 1 forment un lot à part : sans cette coupure, une
+  // urgence et une broutille se lisent dans la même colonne, et le tri seul ne
+  // le dit pas assez fort. Pas d'intertitre s'il n'y a rien d'urgent — ou si
+  // TOUT est urgent : un en-tête qui ne sépare rien n'apprend rien.
+  const urgent = depth === 0 ? open.filter((t) => (eff.get(t.id) || 0) === 1).length : 0
+  const split = urgent > 0 && urgent < open.length
+
   return (
     <ul className="plan-list">
-      {open.map((todo) => (
-        <li key={todo.id} className="plan-row" style={{ paddingLeft: Math.min(depth, MAX_INDENT) * INDENT }}>
-          <Row
-            node={{ todo, depth, children: byParent.get(todo.id) || [] }}
-            todos={todos}
-            eff={eff}
-            onAsk={onAsk}
-            ask={ask}
-            onSpent={onSpent}
-            onAddUnder={onAddUnder}
-            addingHere={addUnder === todo.id}
-            active={activeId === todo.id}
-            onActivate={onActivate}
-            now={now}
-            onStart={onStart}
-            onStop={onStop}
-          />
-          {addUnder === todo.id && (
-            <div style={{ paddingLeft: INDENT }}>
-              <AddLine parentId={todo.id} label="+ Ajouter ici…" />
-            </div>
-          )}
-          <Group
-            parentId={todo.id}
-            depth={depth + 1}
-            byParent={byParent}
-            todos={todos}
-            eff={eff}
-            onAsk={onAsk}
-            ask={ask}
-            onSpent={onSpent}
-            addUnder={addUnder}
-            onAddUnder={onAddUnder}
-            activeId={activeId}
-            onActivate={onActivate}
-            now={now}
-            onStart={onStart}
-            onStop={onStop}
-          />
+      {split && (
+        <li className="plan-sep is-urgent" aria-hidden="true">
+          Urgent
         </li>
+      )}
+      {open.map((todo, i) => (
+        <Fragment key={todo.id}>
+          {split && i === urgent && (
+            <li className="plan-sep" aria-hidden="true">
+              Ensuite
+            </li>
+          )}
+          <li className="plan-row" style={{ paddingLeft: Math.min(depth, MAX_INDENT) * INDENT }}>
+            <Row
+              node={{ todo, depth, children: byParent.get(todo.id) || [] }}
+              todos={todos}
+              eff={eff}
+              onAsk={onAsk}
+              ask={ask}
+              onSpent={onSpent}
+              onCleared={onCleared}
+              onAddUnder={onAddUnder}
+              addingHere={addUnder === todo.id}
+              active={activeId === todo.id}
+              onActivate={onActivate}
+              now={now}
+              onStart={onStart}
+              onStop={onStop}
+            />
+            {addUnder === todo.id && (
+              <div style={{ paddingLeft: INDENT }}>
+                <AddLine parentId={todo.id} label="+ Ajouter ici…" />
+              </div>
+            )}
+            <Group
+              parentId={todo.id}
+              depth={depth + 1}
+              byParent={byParent}
+              todos={todos}
+              eff={eff}
+              onAsk={onAsk}
+              ask={ask}
+              onSpent={onSpent}
+              onCleared={onCleared}
+              addUnder={addUnder}
+              onAddUnder={onAddUnder}
+              activeId={activeId}
+              onActivate={onActivate}
+              now={now}
+              onStart={onStart}
+              onStop={onStop}
+            />
+          </li>
+        </Fragment>
       ))}
       {depth === 0 && (
         <li className="plan-row plan-row-add">
@@ -365,6 +426,7 @@ export function PlanView() {
         onAsk={onAsk}
         ask={ask}
         onSpent={setSpent}
+        onCleared={() => setAsk(null)}
         addUnder={addUnder}
         onAddUnder={setAddUnder}
         activeId={activeId}
