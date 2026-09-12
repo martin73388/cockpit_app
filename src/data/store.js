@@ -8,7 +8,7 @@
 import { stamp, observe } from './clock.js'
 import { todayISO } from '../utils/dates.js'
 import { childrenByParent, ancestorsOf, canMoveUnder } from '../utils/tree.js'
-import { emptyState, newTodo, newSubtask, newHabit, newInboxItem, tombstone } from './model.js'
+import { emptyState, newTodo, newSubtask, newHabit, newInboxItem, tombstone, TIMER_CAP_MINUTES } from './model.js'
 import { canonicalize, stableStringify } from '../sync/merge.js'
 import { KEYS, load, save } from './persist.js'
 
@@ -352,6 +352,41 @@ export function createStore(initial) {
       })
     },
 
+    // Lancer le chrono sur une tache. Un seul tourne a la fois : en demarrer un
+    // arrete le precedent ET lui compte son temps, plutot que de le perdre.
+    // (La regle est tenue localement. Une fusion peut faire coexister deux
+    // chronos partis de deux appareils — chacun reste arretable la ou il se
+    // voit, rien n'est perdu.)
+    startTimer(id, now = Date.now()) {
+      mutate((s) => {
+        if (!s.todos.some((x) => x.id === id)) return s
+        return {
+          ...s,
+          todos: s.todos.map((x) => {
+            if (x.id === id) return { ...x, timerStart: now, updatedAt: stamp() }
+            if (!x.timerStart) return x
+            return { ...bankTimer(x, now), updatedAt: stamp() }
+          }),
+        }
+      })
+    },
+
+    // Arreter le chrono et verser le temps mesure dans spentMinutes.
+    // Retourne les minutes versees (0 si rien ne tournait) pour que l'interface
+    // puisse pre-remplir la question du temps.
+    stopTimer(id, now = Date.now()) {
+      let added = 0
+      mutate((s) => {
+        const t = s.todos.find((x) => x.id === id)
+        if (!t || !t.timerStart) return s
+        const before = Number(t.spentMinutes) || 0
+        const next = bankTimer(t, now)
+        added = (Number(next.spentMinutes) || 0) - before
+        return { ...s, todos: s.todos.map((x) => (x.id === id ? { ...next, updatedAt: stamp() } : x)) }
+      })
+      return added
+    },
+
     // Le temps reellement passe sur CETTE tache. Propose au moment de cocher,
     // jamais impose : une valeur absente est une information (« pas mesure »),
     // un zero force n'en serait pas une.
@@ -540,6 +575,18 @@ export function createStore(initial) {
 // is checked) was removed on purpose: completing stays an explicit gesture, so
 // the « En attente d'une suite ? » flow is never bypassed and nothing closes
 // itself behind the user's back.
+// Verse le temps d'un chrono en cours dans spentMinutes et l'arrete.
+// Un chrono oublie est plafonne : au-dela de TIMER_CAP_MINUTES, le temps
+// retenu n'est plus une mesure mais une convention — l'interface le signale
+// pour qu'un chiffre invente ne passe jamais pour un chiffre constate.
+function bankTimer(todo, now) {
+  if (!todo.timerStart) return todo
+  const raw = Math.round((now - todo.timerStart) / 60000)
+  const minutes = Math.max(0, Math.min(raw, TIMER_CAP_MINUTES))
+  const total = (Number(todo.spentMinutes) || 0) + minutes
+  return { ...todo, timerStart: null, spentMinutes: total > 0 ? total : null }
+}
+
 // Les champs que « fait / pas fait » entraine, factorises pour que le Plan et
 // l'onglet Todos ne divergent pas en silence. Le robot d'agenda tranche ensuite :
 // creneau a venir -> evenement retire, creneau deja passe -> garde comme trace.

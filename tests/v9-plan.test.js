@@ -7,7 +7,7 @@
 // unité de fusion, et le perdant du dernier-écrit-gagne perd sa branche.
 import { describe, it, expect, beforeEach } from 'vitest'
 import { canonicalize, mergeStates, serialize } from '../src/sync/merge.js'
-import { newTodo, APP, SCHEMA_VERSION } from '../src/data/model.js'
+import { newTodo, APP, SCHEMA_VERSION, TIMER_CAP_MINUTES } from '../src/data/model.js'
 import { createStore } from '../src/data/store.js'
 import { childrenByParent, rootsOf, subtreeIds, ancestorsOf, progressOf, canCheck, spentOf, formatSpent, canMoveUnder } from '../src/utils/tree.js'
 import { visibleTodos } from '../src/utils/todoView.js'
@@ -311,5 +311,85 @@ describe('v9 : l’existant n’est pas dérangé', () => {
     // Les 7 sous-tâches existantes ne sont ni promues ni effacées : la page
     // Plan les ignore, l'onglet Todos continue de les afficher.
     expect(c.subtasks).toEqual([{ id: 's1', title: 'sous', done: false }])
+  })
+})
+
+describe('v9 : le chrono', () => {
+  const T0 = 1_700_000_000_000
+  let s
+  beforeEach(() => {
+    s = createStore(state())
+  })
+  const find = (id) => s.getSnapshot().todos.find((t) => t.id === id)
+
+  it('naît à l’arrêt, et se lance', () => {
+    expect(newTodo().timerStart).toBe(null)
+    const a = s.addTodo('A')
+    s.startTimer(a, T0)
+    expect(find(a).timerStart).toBe(T0)
+  })
+
+  it('verse le temps mesuré à l’arrêt', () => {
+    const a = s.addTodo('A')
+    s.startTimer(a, T0)
+    const added = s.stopTimer(a, T0 + 25 * 60000)
+    expect(added).toBe(25)
+    expect(find(a).spentMinutes).toBe(25)
+    expect(find(a).timerStart).toBe(null)
+  })
+
+  it('deux sessions s’additionnent', () => {
+    const a = s.addTodo('A')
+    s.startTimer(a, T0)
+    s.stopTimer(a, T0 + 10 * 60000)
+    s.startTimer(a, T0 + 3600000)
+    s.stopTimer(a, T0 + 3600000 + 5 * 60000)
+    expect(find(a).spentMinutes).toBe(15)
+  })
+
+  it('un seul chrono à la fois : en lancer un arrête l’autre ET lui compte son temps', () => {
+    const a = s.addTodo('A')
+    const b = s.addTodo('B')
+    s.startTimer(a, T0)
+    s.startTimer(b, T0 + 20 * 60000)
+    expect(find(a).timerStart).toBe(null)
+    expect(find(a).spentMinutes).toBe(20) // rien n'est perdu en route
+    expect(find(b).timerStart).toBe(T0 + 20 * 60000)
+  })
+
+  it('un chrono oublié est plafonné à 4 h', () => {
+    const a = s.addTodo('A')
+    s.startTimer(a, T0)
+    expect(s.stopTimer(a, T0 + 14 * 3600000)).toBe(TIMER_CAP_MINUTES)
+    expect(find(a).spentMinutes).toBe(TIMER_CAP_MINUTES)
+  })
+
+  it('arrêter un chrono qui ne tourne pas ne fait rien', () => {
+    const a = s.addTodo('A')
+    expect(s.stopTimer(a, T0)).toBe(0)
+    expect(find(a).spentMinutes).toBe(null)
+  })
+
+  it('une horloge qui recule ne retire jamais de temps', () => {
+    const a = s.addTodo('A')
+    s.setSpentMinutes(a, 30)
+    s.startTimer(a, T0)
+    s.stopTimer(a, T0 - 3600000) // horloge remise à l'heure entre-temps
+    expect(find(a).spentMinutes).toBe(30)
+  })
+
+  it('la fusion garde le chrono, sans jamais lire l’horloge', () => {
+    // canonicalize doit rester une fonction pure : si elle bornait le chrono
+    // avec l'heure courante, deux appareils produiraient des octets différents
+    // pour le même état et le compare-and-swap GitHub verrait un diff permanent.
+    const once = canonicalize(state({ todos: [T('a', { timerStart: T0 })] }))
+    expect(once.todos[0].timerStart).toBe(T0)
+    expect(canonicalize(once)).toEqual(once)
+    expect(serialize(once)).toBe(serialize(canonicalize(once)))
+  })
+
+  it('un timerStart aberrant est ignoré', () => {
+    const c = canonicalize(state({ todos: [T('a', { timerStart: -1 }), T('b', { timerStart: 'nawak' })] })).todos
+    expect(c.every((t) => t.timerStart === null)).toBe(true)
   })
 })

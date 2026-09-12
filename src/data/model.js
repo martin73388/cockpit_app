@@ -37,6 +37,10 @@ export const ESTIMATES = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240]
 // faire défiler et le geste cesserait d'être un seul tap.
 export const SPENT_CHOICES = [5, 15, 30, 60, 120, 240]
 
+// v9 — plafond d'un chrono oublié. Au-delà, on retient 4 h et on arrête : le
+// chiffre est alors une convention, pas une mesure, et l'interface le dit.
+export const TIMER_CAP_MINUTES = 240
+
 export const SORTS = ['manual', 'due', 'priority', 'created']
 export const SORT_LABEL = { manual: 'Manuel', due: 'Échéance', priority: 'Priorité', created: 'Création' }
 
@@ -106,6 +110,10 @@ export function newTodo(patch = {}) {
     // v9 — temps réellement passé sur CETTE tâche (hors descendants). Le total
     // d'un sujet est la somme de l'arbre, calculée à l'affichage.
     spentMinutes: null,
+    // v9 — chrono en cours (epoch ms) ou null. Le temps n'est ecrit dans
+    // spentMinutes qu'a l'arret : un chrono qui tourne n'est pas une donnee,
+    // c'est une intention, et deux appareils peuvent en avoir une chacun.
+    timerStart: null,
     subtasks: [],
     createdAt: t,
     updatedAt: t,

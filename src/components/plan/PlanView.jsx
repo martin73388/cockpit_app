@@ -1,9 +1,9 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { store } from '../../data/store.js'
 import { useStore } from '../../hooks/useStore.js'
-import { SPENT_CHOICES } from '../../data/model.js'
+import { SPENT_CHOICES, TIMER_CAP_MINUTES } from '../../data/model.js'
 import { isOverdue } from '../../utils/dates.js'
-import { childrenByParent, progressOf, canCheck, spentOf, formatSpent } from '../../utils/tree.js'
+import { childrenByParent, ancestorsOf, progressOf, canCheck, spentOf, formatSpent } from '../../utils/tree.js'
 
 // Page Plan — les tâches en arbre, et rien d'autre.
 //
@@ -20,7 +20,7 @@ import { childrenByParent, progressOf, canCheck, spentOf, formatSpent } from '..
 const INDENT = 14
 const MAX_INDENT = 4
 
-function Row({ node, todos, onAsk, askId, onSpent, onAddUnder, addingHere, active, onActivate }) {
+function Row({ node, todos, onAsk, ask, onSpent, onAddUnder, addingHere, active, onActivate, now, onStart, onStop }) {
   const { todo, depth, children } = node
   const open = children.filter((c) => c.status !== 'done')
   const prog = progressOf(children)
@@ -28,6 +28,7 @@ function Row({ node, todos, onAsk, askId, onSpent, onAddUnder, addingHere, activ
   const spent = spentOf(todos, todo.id)
   const late = isOverdue(todo)
   const name = todo.title || 'Sans titre'
+  const running = todo.timerStart ? Math.round((now - todo.timerStart) / 60000) : 0
 
   return (
     <>
@@ -79,6 +80,19 @@ function Row({ node, todos, onAsk, askId, onSpent, onAddUnder, addingHere, activ
         {todo.status === 'waiting' && (
           <span className="plan-wait" title={todo.waiting?.note || 'En attente'}>⧗</span>
         )}
+        {/* Un chrono qui tourne se voit TOUJOURS, barre ouverte ou non : c'est
+            la seule chose qui empêche de le laisser courir toute la nuit. */}
+        {todo.timerStart ? (
+          <button
+            type="button"
+            className={`plan-run${running > TIMER_CAP_MINUTES ? ' is-over' : ''}`}
+            onClick={() => onStop(todo.id)}
+            aria-label={`Arrêter le chrono : ${name}`}
+            title={running > TIMER_CAP_MINUTES ? `Chrono oublié — au-delà de ${formatSpent(TIMER_CAP_MINUTES)} on ne retiendra que ${formatSpent(TIMER_CAP_MINUTES)}` : 'Arrêter le chrono'}
+          >
+            ● {formatSpent(Math.max(1, running))}
+          </button>
+        ) : null}
 
       </div>
 
@@ -97,6 +111,15 @@ function Row({ node, todos, onAsk, askId, onSpent, onAddUnder, addingHere, activ
           >
             + étape
           </button>
+          {todo.timerStart ? (
+            <button type="button" className="plan-move is-on" onClick={() => onStop(todo.id)} aria-label={`Arrêter le chrono : ${name}`}>
+              ■ arrêter le chrono
+            </button>
+          ) : (
+            <button type="button" className="plan-move" onClick={() => onStart(todo.id)} aria-label={`Je fais ça maintenant : ${name}`}>
+              ▶ je fais ça
+            </button>
+          )}
         </div>
       )}
 
@@ -104,17 +127,29 @@ function Row({ node, todos, onAsk, askId, onSpent, onAddUnder, addingHere, activ
         <p className="plan-wait-note">{todo.waiting.note}</p>
       ) : null}
 
-      {askId === todo.id && (
+      {ask && ask.id === todo.id && (
         <div className="plan-spent-ask" role="group" aria-label={`Temps passé sur : ${name}`}>
-          <span>Ça t’a pris&nbsp;?</span>
+          {ask.preset > 0 ? (
+            <>
+              <span>Chrono&nbsp;: {formatSpent(ask.preset)}{ask.capped ? ' (plafonné)' : ''}</span>
+              <button type="button" className="plan-chip is-primary" onClick={() => onSpent(todo.id, null)}>
+                garder
+              </button>
+              <span className="plan-ask-sep">ou</span>
+            </>
+          ) : (
+            <span>Ça t’a pris&nbsp;?</span>
+          )}
           {SPENT_CHOICES.map((m) => (
             <button key={m} type="button" className="plan-chip" onClick={() => onSpent(todo.id, m)}>
               {formatSpent(m)}
             </button>
           ))}
-          <button type="button" className="plan-chip is-skip" onClick={() => onSpent(todo.id, null)}>
-            passer
-          </button>
+          {ask.preset > 0 ? null : (
+            <button type="button" className="plan-chip is-skip" onClick={() => onSpent(todo.id, null)}>
+              passer
+            </button>
+          )}
         </div>
       )}
     </>
@@ -146,7 +181,7 @@ function AddLine({ parentId, label }) {
   )
 }
 
-function Group({ parentId, depth, byParent, todos, onAsk, askId, onSpent, addUnder, onAddUnder, activeId, onActivate }) {
+function Group({ parentId, depth, byParent, todos, onAsk, ask, onSpent, addUnder, onAddUnder, activeId, onActivate, now, onStart, onStop }) {
   const children = byParent.get(parentId || '\u0000root') || []
   // `byParent` est déjà bâti sur les tâches vivantes + celle en attente de
   // réponse : on n'a rien à refiltrer ici, sinon la question disparaîtrait.
@@ -160,12 +195,15 @@ function Group({ parentId, depth, byParent, todos, onAsk, askId, onSpent, addUnd
             node={{ todo, depth, children: byParent.get(todo.id) || [] }}
             todos={todos}
             onAsk={onAsk}
-            askId={askId}
+            ask={ask}
             onSpent={onSpent}
             onAddUnder={onAddUnder}
             addingHere={addUnder === todo.id}
             active={activeId === todo.id}
             onActivate={onActivate}
+            now={now}
+            onStart={onStart}
+            onStop={onStop}
           />
           {addUnder === todo.id && (
             <div style={{ paddingLeft: INDENT }}>
@@ -178,12 +216,15 @@ function Group({ parentId, depth, byParent, todos, onAsk, askId, onSpent, addUnd
             byParent={byParent}
             todos={todos}
             onAsk={onAsk}
-            askId={askId}
+            ask={ask}
             onSpent={onSpent}
             addUnder={addUnder}
             onAddUnder={onAddUnder}
             activeId={activeId}
             onActivate={onActivate}
+            now={now}
+            onStart={onStart}
+            onStop={onStop}
           />
         </li>
       ))}
@@ -198,26 +239,61 @@ function Group({ parentId, depth, byParent, todos, onAsk, askId, onSpent, addUnd
 
 export function PlanView() {
   const todos = useStore((s) => s.todos)
-  const [askId, setAskId] = useState(null)
+  const [ask, setAsk] = useState(null) // { id, preset, capped }
   const [addUnder, setAddUnder] = useState(null)
   const [activeId, setActiveId] = useState(null)
+  const [now, setNow] = useState(() => Date.now())
+
+  // Le tic-tac ne tourne QUE si un chrono tourne : une page au repos ne doit
+  // pas réveiller React chaque seconde sur un téléphone.
+  const ticking = todos.some((t) => t.timerStart)
+  useEffect(() => {
+    if (!ticking) return undefined
+    const h = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(h)
+  }, [ticking])
 
   // La tâche qu'on vient de cocher reste à l'écran tant qu'on ne lui a pas
   // répondu : sans ça elle disparaissait à l'instant du clic et emportait la
   // question du temps avec elle — la fonctionnalité était inatteignable.
-  const live = todos.filter((t) => t.status !== 'done' || t.id === askId)
+  //
+  // Ses ANCÊTRES restent avec elle, même auto-complétés : sans eux, cocher la
+  // dernière étape d'un sujet faisait disparaître le sujet, l'étape devenait
+  // orpheline et sautait en bas de page — loin du doigt, juste au moment où on
+  // lui pose une question.
+  const keep = new Set()
+  if (ask) {
+    keep.add(ask.id)
+    for (const a of ancestorsOf(todos, ask.id)) keep.add(a.id)
+  }
+  const live = todos.filter((t) => t.status !== 'done' || keep.has(t.id))
   const byParent = childrenByParent(live)
 
   // Cocher : on bascule d'abord, on demande le temps ensuite — et seulement si
   // Martin avait estimé la tâche. Sur les autres, la question serait un péage
   // quotidien pour une donnée qu'il n'a pas demandé à mesurer.
-  function ask(todo) {
+  function onAsk(todo) {
+    // Un chrono encore en marche est d'abord versé : on ne coche jamais une
+    // tâche en laissant tourner sa mesure.
+    const banked = todo.timerStart ? store.stopTimer(todo.id) : 0
     store.togglePlanDone(todo.id)
-    if (todo.estimateMinutes > 0) setAskId(todo.id)
+    if (banked > 0) {
+      setAsk({ id: todo.id, preset: banked, capped: banked >= TIMER_CAP_MINUTES })
+    } else if (todo.estimateMinutes > 0) {
+      setAsk({ id: todo.id, preset: 0, capped: false })
+    }
   }
   function setSpent(id, minutes) {
     if (minutes != null) store.setSpentMinutes(id, minutes)
-    setAskId(null)
+    setAsk(null)
+  }
+  function onStart(id) {
+    store.startTimer(id)
+    setNow(Date.now())
+  }
+  function onStop(id) {
+    store.stopTimer(id)
+    setNow(Date.now())
   }
 
   return (
@@ -227,13 +303,16 @@ export function PlanView() {
         depth={0}
         byParent={byParent}
         todos={todos}
-        onAsk={ask}
-        askId={askId}
+        onAsk={onAsk}
+        ask={ask}
         onSpent={setSpent}
         addUnder={addUnder}
         onAddUnder={setAddUnder}
         activeId={activeId}
         onActivate={setActiveId}
+        now={now}
+        onStart={onStart}
+        onStop={onStop}
       />
     </section>
   )

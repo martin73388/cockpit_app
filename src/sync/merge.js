@@ -261,6 +261,11 @@ function canonTodo(t) {
     // v9 — temps passe. Arrondi AVANT le test de positivite : meme piege
     // d'idempotence que durationMinutes et estimateMinutes.
     spentMinutes: spent > 0 ? spent : null,
+    // Jamais borne ni compare a l'heure courante ici : canonicalize doit rester
+    // une fonction pure de son entree. Si elle lisait l'horloge, deux appareils
+    // produiraient des octets differents pour le meme etat, le compare-and-swap
+    // GitHub verrait un diff permanent et la synchro tournerait en boucle.
+    timerStart: Number(t.timerStart) > 0 ? num(t.timerStart) : null,
     subtasks: asArray(t.subtasks).filter((s) => s && s.id != null).map(canonSubtask),
     createdAt: num(t.createdAt),
     updatedAt: num(t.updatedAt),
