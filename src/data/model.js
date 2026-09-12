@@ -36,6 +36,11 @@ export const ESTIMATES = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240]
 // court : six boutons tiennent sur une ligne à 240 px, au-delà il faudrait
 // faire défiler et le geste cesserait d'être un seul tap.
 export const SPENT_CHOICES = [5, 15, 30, 60, 120, 240]
+// Même échelle pour l'estimation : comparer « 30 min prévu » à « 45 min passé »
+// n'a de sens que si les deux se saisissent dans le même vocabulaire. (ESTIMATES,
+// plus fin, reste la liste de l'onglet Todos — onze valeurs ne tiennent pas sur
+// une ligne à 240 px.)
+export const ESTIMATE_CHOICES = SPENT_CHOICES
 
 // v9 — plafond d'un chrono oublié. Au-delà, on retient 4 h et on arrête : le
 // chiffre est alors une convention, pas une mesure, et l'interface le dit.

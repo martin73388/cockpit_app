@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { store } from '../../data/store.js'
 import { useStore } from '../../hooks/useStore.js'
-import { SPENT_CHOICES, TIMER_CAP_MINUTES, RANKS } from '../../data/model.js'
+import { SPENT_CHOICES, ESTIMATE_CHOICES, TIMER_CAP_MINUTES, RANKS } from '../../data/model.js'
 import { isOverdue } from '../../utils/dates.js'
 import { childrenByParent, ancestorsOf, effectiveRanks, reorderNeighbour, progressOf, canCheck, spentOf, formatSpent, ROOT } from '../../utils/tree.js'
 
@@ -124,6 +124,24 @@ function Row({ node, todos, eff, onAsk, ask, onSpent, onAddUnder, addingHere, ac
               aria-label={`Priorité ${r}${r === 1 ? ' (la plus urgente)' : ''} : ${name}`}
             >
               {r}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {active && (
+        <div className="plan-ranks" role="group" aria-label={`Temps estimé : ${name}`}>
+          <span className="plan-ranks-lbl">Estimé</span>
+          {ESTIMATE_CHOICES.map((m) => (
+            <button
+              key={m}
+              type="button"
+              className={`plan-chip${todo.estimateMinutes === m ? ' is-primary' : ''}`}
+              onClick={() => store.setEstimate(todo.id, todo.estimateMinutes === m ? null : m)}
+              aria-pressed={todo.estimateMinutes === m}
+              aria-label={`Estimer à ${formatSpent(m)} : ${name}`}
+            >
+              {formatSpent(m)}
             </button>
           ))}
         </div>

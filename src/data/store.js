@@ -427,6 +427,17 @@ export function createStore(initial) {
       return added
     },
 
+    // Le temps qu'on PREVOIT d'y passer. C'est lui qui declenche la question
+    // du temps reel a la coche : sans estimation, Cockpit ne demande rien.
+    setEstimate(id, minutes) {
+      const m = Math.round(Number(minutes))
+      const value = Number.isFinite(m) && m > 0 ? m : null
+      mutate((s) => ({
+        ...s,
+        todos: s.todos.map((x) => (x.id === id && x.estimateMinutes !== value ? { ...x, estimateMinutes: value, updatedAt: stamp() } : x)),
+      }))
+    },
+
     // Le temps reellement passe sur CETTE tache. Propose au moment de cocher,
     // jamais impose : une valeur absente est une information (« pas mesure »),
     // un zero force n'en serait pas une.

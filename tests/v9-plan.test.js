@@ -7,7 +7,7 @@
 // unité de fusion, et le perdant du dernier-écrit-gagne perd sa branche.
 import { describe, it, expect, beforeEach } from 'vitest'
 import { canonicalize, mergeStates, serialize } from '../src/sync/merge.js'
-import { newTodo, APP, SCHEMA_VERSION, TIMER_CAP_MINUTES } from '../src/data/model.js'
+import { newTodo, APP, SCHEMA_VERSION, TIMER_CAP_MINUTES, SPENT_CHOICES, ESTIMATE_CHOICES } from '../src/data/model.js'
 import { createStore } from '../src/data/store.js'
 import { childrenByParent, rootsOf, subtreeIds, ancestorsOf, effectiveRanks, reorderNeighbour, progressOf, canCheck, spentOf, formatSpent, canMoveUnder } from '../src/utils/tree.js'
 import { visibleTodos } from '../src/utils/todoView.js'
@@ -522,5 +522,44 @@ describe('v9 : réordonner à priorité égale', () => {
     const snap = s.getSnapshot().todos
     expect(ids(childrenByParent(snap).get(p))).toEqual([y, x])
     expect(snap.find((t) => t.id === y).parentId).toBe(p)
+  })
+})
+
+describe('v9 : l’estimation, réglable depuis le Plan', () => {
+  let s
+  beforeEach(() => {
+    s = createStore(state())
+  })
+  const find = (id) => s.getSnapshot().todos.find((t) => t.id === id)
+
+  it('se pose et se retire', () => {
+    const a = s.addTodo('A')
+    s.setEstimate(a, 30)
+    expect(find(a).estimateMinutes).toBe(30)
+    s.setEstimate(a, null)
+    expect(find(a).estimateMinutes).toBe(null)
+  })
+
+  it('une valeur absurde ne s’enregistre pas', () => {
+    const a = s.addTodo('A')
+    s.setEstimate(a, -10)
+    expect(find(a).estimateMinutes).toBe(null)
+    s.setEstimate(a, 'beaucoup')
+    expect(find(a).estimateMinutes).toBe(null)
+  })
+
+  it('estimé et passé parlent la même langue', () => {
+    // Comparer « 30 min prévu » à « 45 min passé » n'a de sens que si les deux
+    // se saisissent dans la même échelle.
+    expect(ESTIMATE_CHOICES).toEqual(SPENT_CHOICES)
+  })
+
+  it('c’est l’estimation qui ouvre la question du temps réel', () => {
+    // Sans elle, cocher ne demande rien — d'où l'importance de pouvoir la
+    // poser sans quitter la page.
+    const a = s.addTodo('A')
+    expect(find(a).estimateMinutes).toBe(null)
+    s.setEstimate(a, 60)
+    expect(find(a).estimateMinutes).toBeGreaterThan(0)
   })
 })
