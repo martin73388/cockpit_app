@@ -1477,3 +1477,27 @@ button.work-slot:disabled {
   font-weight: 600;
 }
 .plan-move.is-wait { color: var(--warning); border-color: var(--warning); }
+
+/* Planifier reste sur la ligne, avec la case : deux gestes qu'on fait sans
+   ouvrir le panneau. */
+.plan-cal {
+  flex: none;
+  width: 24px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.45;
+  border-radius: 6px;
+}
+.plan-cal:hover, .plan-cal:focus-visible { opacity: 1; }
+.plan-cal.is-on { opacity: 1; }
+.plan-slot {
+  flex: none;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent, var(--success));
+  white-space: nowrap;
+}

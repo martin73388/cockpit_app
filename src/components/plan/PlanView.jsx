@@ -2,7 +2,9 @@ import { useState, useRef, useEffect, Fragment } from 'react'
 import { store } from '../../data/store.js'
 import { useStore } from '../../hooks/useStore.js'
 import { SPENT_CHOICES, ESTIMATE_CHOICES, TIMER_CAP_MINUTES, RANKS } from '../../data/model.js'
-import { isOverdue } from '../../utils/dates.js'
+import { isOverdue, todayISO, formatDueDate } from '../../utils/dates.js'
+import { workSlots } from '../../utils/slots.js'
+import { ScheduleDialog } from '../todos/ScheduleDialog.jsx'
 import { childrenByParent, ancestorsOf, effectiveRanks, reorderNeighbour, progressOf, canCheck, spentOf, formatSpent, ROOT } from '../../utils/tree.js'
 
 // Page Plan — les tâches en arbre, et rien d'autre.
@@ -20,7 +22,7 @@ import { childrenByParent, ancestorsOf, effectiveRanks, reorderNeighbour, progre
 const INDENT = 14
 const MAX_INDENT = 4
 
-function Row({ node, todos, byParent, eff, onAsk, ask, onSpent, onCleared, onAddUnder, addingHere, active, onActivate, now, onStart, onStop, editing, armed, onEdit, onArm }) {
+function Row({ node, todos, byParent, eff, onSchedule, onAsk, ask, onSpent, onCleared, onAddUnder, addingHere, active, onActivate, now, onStart, onStop, editing, armed, onEdit, onArm }) {
   const { todo, depth, children } = node
   const open = children.filter((c) => c.status !== 'done')
   const prog = progressOf(children)
@@ -99,6 +101,24 @@ function Row({ node, todos, byParent, eff, onAsk, ask, onSpent, onCleared, onAdd
         {todo.status === 'waiting' && (
           <span className="plan-wait" title={todo.waiting?.note || 'En attente'}>⧗</span>
         )}
+        {/* Un créneau réservé se voit sur la ligne : sinon la tâche « disparaît »
+            de l'esprit sans que rien ne dise quand elle revient. */}
+        {todo.status === 'scheduled' && todo.scheduled?.date ? (
+          <span className="plan-slot" title={`Créneau : ${formatDueDate(todo.scheduled.date)}${todo.scheduled.time ? ` à ${todo.scheduled.time}` : ''}`}>
+            {todo.scheduled.time || formatDueDate(todo.scheduled.date)}
+          </span>
+        ) : null}
+        {/* Cocher et planifier restent directs sur la ligne — c'est ce qu'on
+            avait décidé, et je l'avais oublié. Le reste passe par le panneau. */}
+        <button
+          type="button"
+          className={`plan-cal${todo.status === 'scheduled' ? ' is-on' : ''}`}
+          onClick={() => onSchedule(todo.id)}
+          aria-label={`Planifier : ${name}`}
+          title="Réserver un créneau"
+        >
+          📅
+        </button>
         {/* Un chrono qui tourne se voit TOUJOURS, barre ouverte ou non : c'est
             la seule chose qui empêche de le laisser courir toute la nuit. */}
         {todo.timerStart ? (
@@ -375,7 +395,7 @@ function AddLine({ parentId, label }) {
   )
 }
 
-function Group({ parentId, depth, byParent, todos, eff, onAsk, ask, onSpent, onCleared, addUnder, onAddUnder, activeId, onActivate, now, onStart, onStop, editingId, armedId, onEdit, onArm }) {
+function Group({ parentId, depth, byParent, todos, eff, onSchedule, onAsk, ask, onSpent, onCleared, addUnder, onAddUnder, activeId, onActivate, now, onStart, onStop, editingId, armedId, onEdit, onArm }) {
   const open = byParent.get(parentId || ROOT) || []
   // `byParent` est déjà bâti sur les tâches vivantes + celle en attente de
   // réponse : on n'a rien à refiltrer ici, sinon la question disparaîtrait.
@@ -408,6 +428,7 @@ function Group({ parentId, depth, byParent, todos, eff, onAsk, ask, onSpent, onC
               todos={todos}
               byParent={byParent}
               eff={eff}
+              onSchedule={onSchedule}
               onAsk={onAsk}
               ask={ask}
               onSpent={onSpent}
@@ -435,6 +456,7 @@ function Group({ parentId, depth, byParent, todos, eff, onAsk, ask, onSpent, onC
               byParent={byParent}
               todos={todos}
               eff={eff}
+              onSchedule={onSchedule}
               onAsk={onAsk}
               ask={ask}
               onSpent={onSpent}
@@ -465,11 +487,13 @@ function Group({ parentId, depth, byParent, todos, eff, onAsk, ask, onSpent, onC
 
 export function PlanView() {
   const todos = useStore((s) => s.todos)
+  const habits = useStore((s) => s.habits)
   const [ask, setAsk] = useState(null) // { id, preset, capped }
   const [addUnder, setAddUnder] = useState(null)
   const [activeId, setActiveId] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [armedId, setArmedId] = useState(null)
+  const [scheduleId, setScheduleId] = useState(null)
 
   // Changer de ligne referme tout : une suppression armée sur une tâche puis
   // oubliée se déclencherait au premier tap sur une AUTRE ligne.
@@ -505,6 +529,10 @@ export function PlanView() {
   const live = todos.filter((t) => t.status !== 'done' || keep.has(t.id))
   const byParent = childrenByParent(live)
   const eff = effectiveRanks(live, byParent)
+  // Les créneaux de travail proposés par la fenêtre « Planifier » : même source
+  // que l'onglet Todos, pour que les deux écrans ne se contredisent jamais.
+  const slots = workSlots(habits, todos, todayISO())
+  const scheduling = scheduleId ? todos.find((t) => t.id === scheduleId) : null
 
   // Cocher : on bascule d'abord, on demande le temps ensuite — et seulement si
   // Martin avait estimé la tâche. Sur les autres, la question serait un péage
@@ -541,6 +569,7 @@ export function PlanView() {
         byParent={byParent}
         todos={live}
         eff={eff}
+        onSchedule={setScheduleId}
         onAsk={onAsk}
         ask={ask}
         onSpent={setSpent}
@@ -557,6 +586,7 @@ export function PlanView() {
         onStart={onStart}
         onStop={onStop}
       />
+      {scheduling && <ScheduleDialog todo={scheduling} slots={slots} onClose={() => setScheduleId(null)} />}
     </section>
   )
 }
