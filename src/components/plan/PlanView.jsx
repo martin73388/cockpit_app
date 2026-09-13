@@ -65,6 +65,7 @@ function Row({ node, todos, byParent, eff, onSchedule, onAsk, ask, onSpent, onCl
           </button>
         )}
 
+        <span className="plan-meta">
         {/* Le rang affiché est l'EFFECTIF : un sujet porte la note la plus
             prioritaire de ses étapes, sinon une urgence enterrée ne se verrait
             nulle part. Seuls 1 et 2 crient ; au-delà tout serait coloré et
@@ -119,6 +120,7 @@ function Row({ node, todos, byParent, eff, onSchedule, onAsk, ask, onSpent, onCl
         >
           📅
         </button>
+        </span>
         {/* Un chrono qui tourne se voit TOUJOURS, barre ouverte ou non : c'est
             la seule chose qui empêche de le laisser courir toute la nuit. */}
         {todo.timerStart ? (

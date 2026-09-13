@@ -31,6 +31,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # Les tests unitaires ne regardent pas l'écran : les trois défauts
+      # d'interface de la page Plan ont tous été trouvés en la faisant tourner.
+      # Sans ce navigateur, la suite e2e serait décorative.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
       - run: npm run build # base defaults to /cockpit_app/ (see vite.config.js)
       - uses: actions/upload-pages-artifact@v3
         with:

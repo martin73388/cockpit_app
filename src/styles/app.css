@@ -1234,14 +1234,21 @@ button.work-slot:disabled {
 .plan-line {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px 6px;
+  /* La méta passe à la ligne plutôt que de grignoter le titre. Mesuré à 240 px :
+     avec priorité + avancement + estimation + calendrier, il ne restait que
+     69 px au titre — neuf caractères, pire que l'indentation qu'on avait
+     écartée au départ. Une ligne de plus vaut mieux qu'un titre illisible. */
+  flex-wrap: wrap;
   min-height: 40px;
   padding: 2px 0;
   border-bottom: 1px solid var(--border-soft, var(--border));
 }
+.plan-meta { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .plan-title {
-  flex: 1;
-  min-width: 0;
+  /* Plancher : en dessous, le titre cesse d'être lisible et la méta doit céder. */
+  flex: 1 1 60%;
+  min-width: 7.5em;
   font-size: 14px;
   line-height: 1.25;
   /* break-word et non anywhere : « Kickmaker » ne doit pas se couper en

@@ -9,14 +9,30 @@ multi-appareils calquée sur Radar / Carnet.
 > reste la **référence d'UI et de comportement**. Le runtime Design Component et
 > `support.js` ne sont **pas** réutilisés — uniquement comme spec vivante.
 
-## Périmètre v2 (actuel)
+## Périmètre v9 (actuel)
 
-- ✅ **Dashboard** (onglet par défaut) : capture rapide/inbox · brief du jour ·
-  aujourd'hui · vigilance vie (piliers) · alertes Radar/Carnet.
-- ✅ **Todos** (inchangé depuis v1) et **Habitudes** (coche « Fait aujourd'hui »,
-  historique 7 jours, pilier, fréquence « toutes les 2 semaines »).
-- ❌ Pas de stats, pas de notifications, pas de streaks (v3+).
+- ✅ **Plan** — **l'onglet d'arrivée**. Les tâches en arbre : une tâche contient
+  des étapes, qui contiennent des étapes. Priorité 1→5 (1 rouge ; un sujet porte
+  la note la plus urgente de ce qu'il contient), temps estimé et temps passé,
+  chrono « je fais ça », et le champ « il reste quelque chose ? » qui annule une
+  coche pour en faire une étape. Les faites disparaissent, l'avancement se lit
+  sur le parent (« 3/5 »).
+- ✅ **Dashboard** : capture rapide/inbox · brief du jour · aujourd'hui ·
+  vigilance vie (piliers) · alertes Radar/Carnet.
+- ✅ **Todos** (inchangé depuis v1) et **Créneaux** (ex-Habitudes : blocs de
+  temps récurrents ; la clé de données reste `habits`, le robot Apps Script la lit).
+- ❌ Pas de stats, pas de notifications, pas de streaks.
 - ❌ L'app n'appelle **jamais** l'API Agenda (handshake display-only, voir plus bas).
+
+### L'arbre du Plan, en deux phrases
+
+Chaque nœud est une **todo de premier niveau ordinaire** portant un `parentId` ;
+l'arbre n'existe qu'au rendu (`src/utils/tree.js`). Ce n'est pas un détail de
+confort : la fusion est du dernier-écrit-gagne **par objet**, donc un arbre
+imbriqué dans une todo n'en formerait qu'une seule unité — le téléphone qui coche
+une branche pendant que le Mac en complète une autre en perdrait une, en silence.
+`canonicalize` libère à la racine les enfants dont le parent a disparu (après les
+pierres tombales, jamais avant) et casse les cycles nés d'une fusion.
 
 ## Démarrage
 
@@ -65,14 +81,30 @@ cockpit_app/  (racine du dépôt)
 │  └─ components/
 │     ├─ Header.jsx           # marque, onglets, pastille de synchro, réglages
 │     ├─ common/              # Icons, ConfirmDelete (2 temps), SyncBadge
+│     ├─ plan/                # PlanView (l'arbre, onglet par défaut)
 │     ├─ todos/               # TodosView, TodoItem, SubtaskList, EditModal, ProjectSelect
-│     ├─ habits/              # HabitsView, HabitForm, HabitCard
-│     ├─ dashboard/           # DashboardView (désactivé)
+│     ├─ habits/              # HabitsView, HabitForm, HabitCard (« Créneaux »)
+│     ├─ dashboard/           # DashboardView, Agenda, Brief, Aujourd'hui, Alertes
 │     └─ settings/            # SettingsView (GitHub + Drive)
 └─ tests/
    ├─ merge.test.js           # fusion : LWW, tombstones, déterminisme, guard
-   └─ sync.test.js            # CAS deux remotes, conflits, guard fichier étranger, offline
+   ├─ sync.test.js            # CAS deux remotes, conflits, guard fichier étranger, offline
+   ├─ v9-plan.test.js         # arbre, cycles, complétion qui remonte, temps, priorité
+   └─ e2e/                    # un vrai navigateur à 240 px — voir ci-dessous
 ```
+
+### Les tests e2e (`npm run e2e`)
+
+Les tests unitaires ne regardent que les données. **Les trois défauts d'interface
+de la page Plan ont tous été trouvés en la faisant tourner**, jamais par un test :
+des boutons qui mangeaient 37 % de la largeur, une question inatteignable parce
+que la tâche disparaissait au clic, et une ligne qui sautait en bas de page au
+moment précis où elle posait cette question. Chacun a son test, nommé d'après le
+défaut, dans `tests/e2e/plan.e2e.mjs`.
+
+Ils tournent dans un vrai Chromium à **240 × 427 px** — l'écran de l'Unihertz
+Jelly Star 2. Ce n'est pas le petit format « au cas où », c'est LE format : tout
+ce qui ne tient pas là ne tient nulle part. La CI les exécute à chaque poussée.
 
 ## Modèle de données — `cockpit-data.json`
 
@@ -113,6 +145,13 @@ en **epoch ms**, `updatedAt` **monotone**, suppressions par **tombstones**.
 }
 ```
 
+v9 : onglet **Plan** — arbre à plat (`parentId`), priorité `rank` 1→5 dont
+`priority` devient la projection (1-2 haute, 3 normale, 4-5 basse, pour que
+Todos / le brief / Carnet continuent sans rien savoir), `spentMinutes` et
+`timerStart` (chrono, un seul à la fois, plafonné à 4 h quand on l'oublie).
+Vérifié avant de toucher au numéro de version : Carnet n'impose AUCUN plafond de
+version sur `cockpit-data.json` et son écriture est un ajout pur
+(`doc.todos.concat`), donc `parentId` ne risque rien.
 v3 : statut « En attente » sur les todos (`status`/`waiting` — sortie de « À faire »,
 relance datée, garde-fou 7 j au Dashboard) + filtre priorités multi-choix.
 v4 (continuité GTD) : « ➕ Créer la suite » à la complétion, prochaine étape
@@ -122,7 +161,7 @@ Migration v1→v2→v3 automatique au chargement (défauts ajoutés, `version` r
 idempotente. Fusion : complétions en **CRDT par date** (`checks` : LWW par date,
 `completions` dérivé) — une coche faite sur un autre appareil n'est jamais
 perdue, et **décocher est durable** (pas de résurrection par union) ; `inbox` =
-union par id + tombstones. Garde : `version > 4` → « bloqué », jamais écrasé.
+union par id + tombstones. Garde : `version > 9` → « bloqué », jamais écrasé.
 
 ## Sources lecture seule (rafraîchies à CHAQUE cycle)
 
