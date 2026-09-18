@@ -4,7 +4,12 @@
 // trouvés en la faisant tourner, jamais par un test. Les 303 tests unitaires ne
 // touchent que les données ; ils ne savent pas qu'un bouton mange la largeur,
 // qu'une question est inatteignable, ou qu'une ligne saute hors de l'écran.
-// Chacun de ces trois cas a donc son test ici, nommé d'après le défaut.
+// Chacun de ces cas a donc son test ici, nommé d'après le défaut.
+//
+// Le défaut 4 a ajouté une leçon de plus : la suite était VERTE pendant que la
+// fonctionnalité était inatteignable, parce que chaque test l'atteignait par la
+// seule porte ouverte. Un test doit entrer par le chemin ordinaire, pas par
+// celui qu'on avait sous la main en l'écrivant.
 //
 // 240 × 427 px : l'écran de l'Unihertz Jelly Star 2. Ce n'est pas le petit
 // format « au cas où », c'est LE format.
@@ -134,6 +139,66 @@ await page.waitForTimeout(300)
   ok('ce qui reste devient une étape DE la tâche', !!enfant && enfant.parentId === 's')
   ok('le sujet au-dessus se rouvre aussi', d.find((t) => t.id === 'p').status === 'todo')
 }
+
+// ------------------ DÉFAUT 4 : la suite réservée aux tâches estimées
+// « Il reste quelque chose ? » et la question du temps partageaient la même
+// condition. Sur une tâche ordinaire — ni estimée ni chronométrée, donc la
+// plupart — cocher ne proposait rien du tout.
+//
+// Les tests d'au-dessus passaient pourtant : ils validaient TOUS une tâche
+// estimée, la seule porte qui se trouvait ouverte. Une suite verte ne prouve
+// que ce qu'elle traverse ; ces trois tests entrent par la porte ordinaire.
+await seed([todo('o', 'Tâche ordinaire')])
+await page.getByRole('checkbox', { name: /Marquer comme fait : Tâche ordinaire/ }).click()
+await page.waitForTimeout(250)
+ok('défaut 4 — cocher une tâche SANS estimation propose quand même la suite',
+   (await page.getByRole('textbox', { name: /Ce qui reste à faire sur/ }).count()) === 1)
+ok('défaut 4 — … sans réclamer un temps qu’on n’a pas demandé à mesurer',
+   (await page.locator('.plan-spent-ask').count()) === 0)
+await page.getByRole('textbox', { name: /Ce qui reste à faire sur/ }).fill('Relancer lundi')
+await page.getByRole('button', { name: /Rouvrir .* avec cette étape/ }).click()
+await page.waitForTimeout(300)
+{
+  const d = await data()
+  ok('défaut 4 — la tâche ordinaire repart avec son étape',
+     d.find((t) => t.id === 'o').status === 'todo' &&
+     !!d.find((t) => t.title === 'Relancer lundi' && t.parentId === 'o'))
+}
+
+// Une validation sans suite doit pouvoir se refermer sans rien taper : sinon la
+// ligne cochée reste à l'écran et la question devient le péage qu'on évitait.
+await seed([todo('o2', 'Rien à ajouter')])
+await page.getByRole('checkbox', { name: /Marquer comme fait : Rien à ajouter/ }).click()
+await page.waitForTimeout(250)
+await page.getByRole('button', { name: /Rien de plus sur/ }).click()
+await page.waitForTimeout(300)
+ok('« c’est fini » referme la question et la tâche s’en va',
+   !(await titres()).includes('Rien à ajouter') &&
+   (await data()).find((t) => t.id === 'o2').status === 'done')
+
+// Sur une tâche estimée les deux questions s'enchaînent : répondre le temps ne
+// doit pas emporter celle d'après avec elle.
+await seed([todo('et', 'Tâche estimée bis', { estimateMinutes: 30 })])
+await page.getByRole('checkbox', { name: /Marquer comme fait : Tâche estimée bis/ }).click()
+await page.waitForTimeout(250)
+await page.locator('.plan-spent-ask .plan-chip').first().click()
+await page.waitForTimeout(300)
+ok('répondre le temps laisse « il reste quelque chose ? » ouvert',
+   (await page.getByRole('textbox', { name: /Ce qui reste à faire sur/ }).count()) === 1)
+
+// Se raviser : une tâche faite quitte la page, donc le seul endroit d'où on
+// peut la décocher est justement le panneau qui vient de s'ouvrir. Décocher
+// rouvre la tâche — ce n'est pas une fin, il n'y a donc plus rien à demander.
+await seed([todo('d1', 'Coche par erreur')])
+const caseD1 = page.getByRole('checkbox', { name: /Marquer comme fait : Coche par erreur/ })
+await caseD1.click()
+await page.waitForTimeout(250)
+await caseD1.click()
+await page.waitForTimeout(300)
+ok('se raviser retire la question et rouvre la tâche',
+   (await page.getByRole('textbox', { name: /Ce qui reste à faire sur/ }).count()) === 0 &&
+   (await data()).find((t) => t.id === 'd1').status === 'todo' &&
+   (await titres()).includes('Coche par erreur'))
 
 // --------------------------------------------------- priorité & séparation
 await seed([

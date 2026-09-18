@@ -249,7 +249,7 @@ function Row({ node, todos, byParent, eff, onSchedule, onAsk, ask, onSpent, onCl
         <p className="plan-wait-note">{todo.waiting.note}</p>
       ) : null}
 
-      {ask && ask.id === todo.id && (
+      {ask && ask.id === todo.id && ask.wantTime && (
         <div className="plan-spent-ask" role="group" aria-label={`Temps passé sur : ${name}`}>
           {ask.preset > 0 ? (
             <>
@@ -363,7 +363,14 @@ function Remaining({ id, name, onDone }) {
         aria-label={`Ce qui reste à faire sur : ${name}`}
         enterKeyHint="done"
       />
-      {!vide && (
+      {vide ? (
+        // Le panneau s'ouvre à CHAQUE validation : il lui faut une sortie qui
+        // ne dépende pas d'avoir estimé la tâche, sinon la ligne cochée reste
+        // collée à l'écran sans que rien n'indique comment s'en débarrasser.
+        <button type="button" className="plan-chip is-skip" onClick={onDone} aria-label={`Rien de plus sur ${name}`}>
+          c’est fini
+        </button>
+      ) : (
         <button type="submit" className="plan-chip is-primary" aria-label={`Rouvrir ${name} avec cette étape`}>
           ça reste à faire
         </button>
@@ -503,6 +510,7 @@ export function PlanView() {
     setActiveId(id)
     setEditingId(null)
     setArmedId(null)
+    setAsk(null) // passer à une autre ligne vaut « rien de plus sur celle-là »
   }
   const [now, setNow] = useState(() => Date.now())
 
@@ -536,23 +544,40 @@ export function PlanView() {
   const slots = workSlots(habits, todos, todayISO())
   const scheduling = scheduleId ? todos.find((t) => t.id === scheduleId) : null
 
-  // Cocher : on bascule d'abord, on demande le temps ensuite — et seulement si
-  // Martin avait estimé la tâche. Sur les autres, la question serait un péage
-  // quotidien pour une donnée qu'il n'a pas demandé à mesurer.
+  // Cocher ouvre TOUJOURS le panneau : c'est lui qui porte « il reste quelque
+  // chose ? », et une tâche qu'on ne peut pas valider complètement, ça arrive
+  // sur n'importe laquelle. Seule la question du TEMPS est conditionnelle —
+  // elle ne se pose que si la tâche a été estimée ou chronométrée, sinon ce
+  // serait un péage quotidien pour une donnée qu'on n'a pas demandé à mesurer.
+  //
+  // Les deux ont partagé la même condition, et c'était un défaut : sur une
+  // tâche ordinaire — ni estimée ni chronométrée, donc la plupart — le panneau
+  // ne s'ouvrait pas du tout et « ce qui reste à faire » était inatteignable.
   function onAsk(todo) {
+    const cocher = todo.status !== 'done'
     // Un chrono encore en marche est d'abord versé : on ne coche jamais une
     // tâche en laissant tourner sa mesure.
     const banked = todo.timerStart ? store.stopTimer(todo.id) : 0
     store.togglePlanDone(todo.id)
-    if (banked > 0) {
-      setAsk({ id: todo.id, preset: banked, capped: banked >= TIMER_CAP_MINUTES })
-    } else if (todo.estimateMinutes > 0) {
-      setAsk({ id: todo.id, preset: 0, capped: false })
+    // Décocher ne demande rien : on rouvre une tâche, on ne la termine pas.
+    if (!cocher) {
+      setAsk(null)
+      return
     }
+    setAsk({
+      id: todo.id,
+      preset: banked,
+      capped: banked >= TIMER_CAP_MINUTES,
+      wantTime: banked > 0 || todo.estimateMinutes > 0,
+    })
   }
+
+  // Répondre sur le temps ne referme PAS le panneau : la question d'après —
+  // « il reste quelque chose ? » — est justement celle qu'on venait chercher.
+  // C'est le champ qui la porte qui referme, une fois répondu ou écarté.
   function setSpent(id, minutes) {
     if (minutes != null) store.setSpentMinutes(id, minutes)
-    setAsk(null)
+    setAsk((a) => (a && a.id === id ? { ...a, preset: 0, wantTime: false } : a))
   }
   function onStart(id) {
     store.startTimer(id)

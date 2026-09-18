@@ -1438,8 +1438,10 @@ button.work-slot:disabled {
 }
 .plan-sep.is-urgent { color: var(--danger); border-bottom-color: var(--danger); padding-top: 2px; }
 
-/* « Et après ? » — les deux boutons n'apparaissent qu'une fois le champ rempli :
-   à vide ils n'ont rien à créer, et ils encombreraient chaque validation. */
+/* « Et après ? » — posé à chaque validation. Le bouton change de sens selon le
+   champ : vide il referme (« c'est fini »), rempli il rouvre la tâche avec
+   l'étape qu'on vient de nommer. Un seul bouton à la fois : sur 240 px, deux
+   tiendraient mal sous un titre déjà serré. */
 .plan-next {
   display: flex;
   flex-wrap: wrap;
